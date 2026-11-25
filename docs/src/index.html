@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RatMath Finance</title>
+<meta name="description" content="The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">@ratmath/finance</div>
+<h1>Money that adds up to the cent</h1>
+<p class="lede">The mathematics of finance with exact money: time value, loans with schedules that reconcile to the cent, bonds and yield curves, and the commonly needed building blocks for simulating a financial situation over time. A full simulation environment would be an app on top.</p>
+<p class="notice"><strong>Planned, not built yet.</strong> This site is the frame the package will grow into. The full plan is in the <a href="https://github.com/ratmath/ratmath/blob/main/docs/design/library-roadmap.md#12-a-finance-package-ratmathfinance">library roadmap</a>, and the <a href="https://ratmath.com/shelf/">RatMath Shelf</a> page lists what exists across all the libraries.</p>
+
+<h2>What it will cover</h2>
+<ul>
+  <li>Money with explicit rounding rules, day counts, the time value of money, annuities.</li>
+  <li>Loans and amortisation schedules, cash flows, rates of return.</li>
+  <li>Bonds, interest rates and yield curves.</li>
+  <li>Scenarios: exact projection of a set of accounts and flows, comparison and sensitivity.</li>
+  <li>Uncertain inputs and repeated runs, with seeded randomness.</li>
+  <li>Portfolios, options and life contingencies.</li>
+</ul>
+
+<h2>The order of work</h2>
+<p>The phases below come from the roadmap. Sizes are rough estimates in lines of source.</p>
+<div class="tablewrap"><table class="plan">
+<tr><th>Phase</th><th>Contents</th><th>Estimate</th></tr>
+<tr><td>1</td><td>Money and rounding, day counts, time value, annuities</td><td>700</td></tr>
+<tr><td>2</td><td>Loans and schedules, cash flows, rates of return</td><td>800</td></tr>
+<tr><td>3</td><td>Bonds, rates and yield curves</td><td>700</td></tr>
+<tr><td>4</td><td>Scenarios, exact projection, comparison and sensitivity</td><td>700</td></tr>
+<tr><td>5</td><td>Uncertain inputs and repeated runs</td><td>800</td></tr>
+<tr><td>6</td><td>Portfolios, options, life contingencies</td><td>1,100</td></tr>
+<tr><td>7</td><td>Pictures</td><td>500 in graphics</td></tr>
+</table></div>
+<p>It will build on: Core, analytic (roots, exponentials), stats (distributions, the seeded generator) and linalg (portfolios).</p>
+
+<h2>How the docs will be laid out</h2>
+<p>Like every library on the Shelf: this overview, an <a href="explore.html">Explore</a> page for trying things without writing code, a <a href="reference.html">Reference</a> listing every function, and one page per topic that explains the usage and the mathematics. Every page ends with a box of code you can edit and run.</p>
+<div class="cards" id="cards"></div>
+
+<h2>Until then</h2>
+<p>The box below already runs, with <code>@ratmath/core</code> in scope. It shows the kind of exactness the package is built on, done by hand.</p>
+<template data-runbox>
+// A 30-year loan of 250,000 at 6% a year, paid monthly: the payment as an exact fraction.
+const principal = new Rational(250000), i = new Rational(6, 1200), n = 360;
+const growth = new Rational(1).add(i).pow(n);
+const payment = principal.multiply(i).multiply(growth).divide(growth.subtract(new Rational(1)));
+PRINT("the exact payment is a fraction with a", String(payment.denominator).length, "digit denominator, about", payment.toDecimal(6));
+// A bank rounds it to 1498.88. Paying that each month overshoots slightly: by how much at the end?
+const paid = new Rational(149888, 100);
+let balance = principal;
+for (let k = 0; k &lt; n; k += 1) balance = balance.multiply(new Rational(1).add(i)).subtract(paid);
+PRINT("balance after 360 payments of 1498.88:", balance.toDecimal(6));
+plan.map((p) =&gt; `${p.phase}. ${p.contents}`)
+</template>
+</article>
+</main>
+</div>
+<script type="module">
+import { topicCards } from "./assets/site.js";
+topicCards(document.getElementById("cards"));
+</script>
+</body>
+</html>
