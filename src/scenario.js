@@ -78,11 +78,13 @@ export class Scenario {
    * flows, rounding = false }.
    * An account: { name, balance = 0, rate = 0 (annual, credited each period
    * as rate/periodsPerYear; a negative balance is a debt and is charged the
-   * same way), rateChanges: [{ from: period, rate }] }.
+   * same way), rateChanges: [{ from: period, rate }], rates (one annual rate
+   * per period, overriding the others while it lasts) }.
    * A flow: { name, amount, to, from, start = 1, end, every = 1, at (one
    * period only), growth (a rate applied once a year from the flow's start),
    * until: "paid" (stop when the `to` account is no longer in debt), then
-   * (an account that receives the money once that happens) }. A flow with
+   * (an account that receives the money once that happens), index (one
+   * multiplier per period; a zero skips the period) }. A flow with
    * only `to` is money arriving; with only `from`, money leaving.
    * Each period: interest on the opening balances, then the flows in order.
    */
@@ -107,13 +109,15 @@ export class Scenario {
     this.accounts = accounts.map((a) => {
       if (typeof a.name !== "string" || names.has(a.name)) refuse("bad-scenario", "each account has its own name");
       names.add(a.name);
-      return { name: a.name, balance: amount(a.balance ?? 0), rate: amount(a.rate ?? 0), rateChanges: (a.rateChanges ?? []).map((c) => ({ from: when(c.from, "a rate change"), rate: amount(c.rate) })).sort((p, q) => p.from - q.from) };
+      if (a.rates !== undefined && !Array.isArray(a.rates)) refuse("bad-scenario", "rates is a list of annual rates, one per period");
+      return { name: a.name, balance: amount(a.balance ?? 0), rate: amount(a.rate ?? 0), rates: a.rates ? a.rates.map(amount) : null, rateChanges: (a.rateChanges ?? []).map((c) => ({ from: when(c.from, "a rate change"), rate: amount(c.rate) })).sort((p, q) => p.from - q.from) };
     });
     if (!this.accounts.length) refuse("bad-scenario", "a scenario has at least one account");
     const known = (n, f) => (n === undefined || n === null ? null : names.has(n) ? n : refuse("bad-scenario", `flow "${f}" names an account "${n}" that does not exist`));
     this.flows = flows.map((f, k) => {
       const label = f.name ?? `flow ${k + 1}`;
-      const flow = { name: label, amount: amount(f.amount), to: known(f.to, label), from: known(f.from, label), then: known(f.then, label), start: when(f.at ?? f.start, "a flow's start") ?? 1, end: f.at !== undefined ? when(f.at, "at") : when(f.end, "a flow's end"), every: f.every ?? 1, growth: f.growth === undefined ? null : amount(f.growth), until: f.until ?? null };
+      const flow = { name: label, amount: amount(f.amount), to: known(f.to, label), from: known(f.from, label), then: known(f.then, label), start: when(f.at ?? f.start, "a flow's start") ?? 1, end: f.at !== undefined ? when(f.at, "at") : when(f.end, "a flow's end"), every: f.every ?? 1, growth: f.growth === undefined ? null : amount(f.growth), index: f.index ? f.index.map(amount) : null, until: f.until ?? null };
+      if (f.index !== undefined && !Array.isArray(f.index)) refuse("bad-scenario", `flow "${label}": index is a list of multipliers, one per period`);
       if (!flow.to && !flow.from) refuse("bad-scenario", `flow "${label}" needs an account to come from or go to`);
       if (!Number.isInteger(flow.every) || flow.every < 1) refuse("bad-scenario", "every is a whole number of periods");
       if (flow.until !== null && (flow.until !== "paid" || !flow.to)) refuse("bad-scenario", 'until is "paid", on a flow into an account that is in debt');
@@ -136,6 +140,7 @@ export class Scenario {
       for (const a of this.accounts) {
         let rate = a.rate;
         for (const c of a.rateChanges) if (c.from <= k) rate = c.rate;
+        if (a.rates && k <= a.rates.length) rate = a.rates[k - 1];
         const interest = r(A.mul(bal[a.name], A.div(rate, m)));
         bal[a.name] = A.add(bal[a.name], interest);
         row.interest[a.name] = interest;
@@ -145,6 +150,10 @@ export class Scenario {
         if (k < f.start || (f.end !== null && k > f.end) || (k - f.start) % f.every !== 0) continue;
         let x = f.amount;
         if (f.growth !== null) x = A.mul(x, A.pow(A.add(ONE, f.growth), Math.floor((k - f.start) / this.periodsPerYear)));
+        if (f.index && k <= f.index.length) {
+          if (f.index[k - 1].numerator === 0n) continue;
+          x = A.mul(x, f.index[k - 1]);
+        }
         x = r(x);
         let into = f.to;
         let spill = null;

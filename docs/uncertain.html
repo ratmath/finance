@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uncertain inputs and repeated runs · RatMath Finance</title>
+<meta property="og:title" content="Uncertain inputs and repeated runs · RatMath Finance">
+<meta property="og:description" content="The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ratmath.com/finance/uncertain.html">
+<meta name="description" content="Random returns, inflation and one-off events written into a scenario; many seeded runs; the chance of running out; percentile bands; the order of good and bad years.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://ratmath.com/assets/katex/0.19.1/katex.min.css">
+<link rel="stylesheet" href="assets/style.css?v=a31feff937">
+<script type="module" src="assets/site.js?v=a31feff937"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Uncertain inputs and repeated runs</h1>
+<p class="lede">A projection with fixed rates answers "what happens if things go as planned". Markets and prices do not, so a scenario can take its rates from a random process instead, and be run many times from one seed. Each run is still exact bookkeeping; what is uncertain is only the path, and every summary says how many runs it rests on and how far it could be off.</p>
+<pre><code>import { simulate, processes } from "@ratmath/finance";
+import { normal } from "@ratmath/stats";
+
+const retirement = {
+  periods: 360,                              // 30 years, monthly
+  accounts: [{ name: "pot", balance: 600000 }],
+  flows: [{ name: "spending", amount: 2500, from: "pot" }],
+};
+const s = simulate(retirement, {
+  returns: { pot: processes.gbm({ drift: "5%", volatility: "15%" }) },
+  inflation: processes.independent(normal("2.5/100", "1/100")),
+  indexed: ["spending"],                     // spending keeps up with prices
+  events: [{ name: "roof", probability: "4%", amount: 15000, from: "pot" }],
+  runs: 1000, seed: 1,
+});
+s.ruin;              // how often the pot ran out, with an exact 95% interval
+s.percentiles["5"];  // the final balance in a bad case
+s.bands;             // percentiles at every month, for a fan chart
+s.real.median;       // the median outcome in today's money</code></pre>
+
+<h2>Processes</h2>
+<p>A process turns a seeded random stream into a path: one growth factor per period, 1 plus that period's return or interest. Written into an account (through <code>returns</code>), the path replaces the account's fixed rate.</p>
+<div class="tablewrap"><table class="ref">
+<tr><th>process</th><th>each year or period</th></tr>
+<tr><td>processes.fixed(rate)</td><td>the same annual return every year: a baseline with no uncertainty</td></tr>
+<tr><td>processes.independent(dist)</td><td>an annual return drawn afresh from a distribution, such as <code>normal("7/100", "15/100")</code> from <code>@ratmath/stats</code></td></tr>
+<tr><td>processes.choice(values, weights)</td><td>an annual return from a short list with exact weights</td></tr>
+<tr><td>processes.sequence(returns)</td><td>the returns given, in order</td></tr>
+<tr><td>processes.resample(history, { block })</td><td>years drawn from history you supply, in blocks of consecutive years so that runs of good or bad years survive</td></tr>
+<tr><td>processes.gbm({ drift, volatility })</td><td>geometric Brownian motion: each period multiplies by <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>exp</mi><mo>⁡</mo><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">(</mo><mo stretchy="false">(</mo><mi>μ</mi><mo>−</mo><mstyle scriptlevel="0" displaystyle="false"><mfrac><msup><mi>σ</mi><mn>2</mn></msup><mn>2</mn></mfrac></mstyle><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><mi>t</mi><mo>+</mo><mi>σ</mi><msqrt><mrow><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow></msqrt><mtext> </mtext><mi>Z</mi><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow><annotation encoding="application/x-tex">\exp\big((\mu - \tfrac{\sigma^2}{2})\Delta t + \sigma\sqrt{\Delta t}\,Z\big)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="mop">exp</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="delimsizing size1">(</span></span><span class="mopen">(</span><span class="mord mathnormal">μ</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.3629em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.0179em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">σ</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913em;"><span style="top:-2.931em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="katex-sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose">)</span><span class="mord">Δ</span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.2767em;vertical-align:-0.35em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9267em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">Δ</span><span class="mord mathnormal">t</span></span></span><span style="top:-2.8867em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1133em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">Z</span><span class="mord"><span class="delimsizing size1">)</span></span></span></span></span>, so a year grows by <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mi>μ</mi></msup></mrow><annotation encoding="application/x-tex">e^{\mu}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6644em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6644em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">μ</span></span></span></span></span></span></span></span></span></span></span></span> on average</td></tr>
+<tr><td>processes.walk({ start, step, min, max })</td><td>an interest rate that moves by a random step once a year</td></tr>
+<tr><td>processes.meanReverting({ start, mean, speed, volatility, floor })</td><td>a Vasicek rate, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>←</mo><mi>r</mi><mo>+</mo><mi>a</mi><mo stretchy="false">(</mo><mi>θ</mi><mo>−</mo><mi>r</mi><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><mi>t</mi><mo>+</mo><mi>σ</mi><msqrt><mrow><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow></msqrt><mtext> </mtext><mi>Z</mi></mrow><annotation encoding="application/x-tex">r \leftarrow r + a(\theta - r)\Delta t + \sigma\sqrt{\Delta t}\,Z</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">←</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">a</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.0278em;">θ</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mclose">)</span><span class="mord">Δ</span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.04em;vertical-align:-0.1133em;"></span><span class="mord mathnormal" style="margin-right:0.0359em;">σ</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9267em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">Δ</span><span class="mord mathnormal">t</span></span></span><span style="top:-2.8867em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1133em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0715em;">Z</span></span></span></span>: pulled back towards its mean</td></tr>
+</table></div>
+<p>An annual return R spread over m periods becomes the factor <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><mi>R</mi><msup><mo stretchy="false">)</mo><mrow><mn>1</mn><mi mathvariant="normal">/</mi><mi>m</mi></mrow></msup></mrow><annotation encoding="application/x-tex">(1+R)^{1/m}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.138em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.888em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1/</span><span class="mord mathnormal mtight">m</span></span></span></span></span></span></span></span></span></span></span></span> each period. With yearly periods that is R itself, exactly. Otherwise, and for every draw from a continuous distribution, the factor is a floating-point number that is rounded to 8 decimal places of the per-period rate. From that point on everything is exact, so two runs from the same seed agree to the cent on any machine.</p>
+
+<h2>Inflation and events</h2>
+<p><code>inflation</code> is a process for the price level. Flows named in <code>indexed</code> are multiplied by the price level at the start of their period, and <code>real</code> divides each outcome by the final price level, giving it in today's money. A fixed inflation rate reproduces a flow with the same <code>growth</code> exactly; the tests check that.</p>
+<p>An event is a one-off flow that happens with a stated probability each year (or each period with <code>per: "period"</code>), at a random point in that year. It can be limited to the first time with <code>once</code>, and its amount can be fixed or drawn from a distribution. A burst pipe, a gap in income, or an inheritance are events.</p>
+
+<h2>Many runs</h2>
+<p>Run i uses the stream <code>rng(seed).fork("run i")</code>, and each input within it has its own fork. So run 7 is the same whether you ask for 10 runs or 10,000, and adding an event does not change the returns. The summaries are simulated answers and say so:</p>
+<ul>
+<li><code>mean</code> is the exact average of the outcomes, and <code>standardError</code> is <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mi mathvariant="normal">/</mi><msqrt><mi>n</mi></msqrt></mrow><annotation encoding="application/x-tex">s/\sqrt{n}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0503em;vertical-align:-0.25em;"></span><span class="mord mathnormal">s</span><span class="mord">/</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8003em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord mathnormal">n</span></span></span><span style="top:-2.7603em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2397em;"><span></span></span></span></span></span></span></span></span>, enclosed.</li>
+<li><code>ruin</code> is the fraction of runs in which an account that started at or above zero went below it. It is reported with an exact (Clopper–Pearson) interval for the true probability, so 37 of 1000 runs reads as "between 2.6% and 5.1%", not as 3.7%.</li>
+<li><code>percentiles</code>, <code>quantile(p)</code> and <code>bands</code> use the nearest-rank rule, so each value is one of the outcomes that actually occurred.</li>
+</ul>
+<p>Balances are rounded to the cent each period during a simulation, as a bank would round them, unless the scenario names another rule or you pass <code>rounding: false</code>. Without rounding, a balance after hundreds of random months is a fraction with thousands of digits.</p>
+
+<h2>Checking the machinery against exact answers</h2>
+<p>When each year's return is one of two values, three years have eight equally likely paths, and the probability of running out can be found exactly by projecting all eight. A simulation with <code>processes.choice</code> must then report an interval that contains that fraction. Its mean must be within a few standard errors of the exact mean of the eight outcomes, and every outcome must be one of the eight. The tests check these, and they also check that geometric Brownian motion's mean growth is <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mrow><mi>μ</mi><mi>T</mi></mrow></msup></mrow><annotation encoding="application/x-tex">e^{\mu T}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8413em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8413em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">μ</span><span class="mord mathnormal mtight" style="margin-right:0.1389em;">T</span></span></span></span></span></span></span></span></span></span></span></span> within the sampling error.</p>
+
+<h2>The order of good and bad years</h2>
+<p>With no money going in or out, the order of returns cannot matter, because <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>r</mi><mn>1</mn></msub><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>r</mi><mn>2</mn></msub><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>r</mi><mn>3</mn></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(1+r_1)(1+r_2)(1+r_3)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> is the same product in any order. <code>sequenceRisk</code> confirms this exactly (<code>orderMatters: false</code>). Add withdrawals and the order matters a great deal. A bad year early, while the pot is large, takes more money out than the same bad year late. <code>sequenceRisk(spec, { account, returns })</code> applies the same returns in the given order, reversed, best first, worst first and in shuffled orders, and reports the spread.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>simulate(spec, { returns, inflation, indexed, events, runs, seed, rounding, measure, ruin, level, percentiles, track })</td><td>Simulation: outcomes, sorted, mean, standardError, percentiles, quantile(p), ruin, ruinTimes, bands, real</td></tr>
+<tr><td>sequenceRisk(spec, { account, returns, shuffles, seed, measure })</td><td>{ rows: [{ order, returns, outcome, firstNegative }], best, worst, spread, orderMatters }</td></tr>
+<tr><td>process.path(seed, periods, periodsPerYear)</td><td>the growth factors of one path</td></tr>
+</table></div>
+<section class="runbox" aria-label="Runnable code">
+  <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>
+  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">const plan = (spend) =&gt; ({ periods: 30, periodsPerYear: 1, accounts: [{ name: "pot", balance: 600000 }], flows: [{ name: "spending", amount: spend, from: "pot" }] });
+for (const spend of [20000, 24000, 30000]) {
+  const s = simulate(plan(spend), {
+    returns: { pot: processes.gbm({ drift: "7%", volatility: "15%" }) },
+    inflation: processes.independent(normal("25/1000", "1/100")), indexed: ["spending"],
+    runs: 400, seed: 1,
+  });
+  PRINT(`spend ${spend} a year: ran out in ${s.ruin.hits} of 400 runs (95% interval ${show(s.ruin.interval.low, 3)} to ${show(s.ruin.interval.high, 3)}); median left ${show(s.percentiles["50"], 0)}, in today's money ${show(s.real.median, 0)}`);
+}
+// the order of the same ten returns, with 40,000 a year taken out
+const returns = ["22%", "-18%", "9%", "14%", "-7%", "11%", "3%", "-25%", "16%", "8%"];
+const r = sequenceRisk({ periods: 10, periodsPerYear: 1, accounts: [{ name: "pot", balance: 400000 }], flows: [{ amount: 40000, from: "pot" }] }, { account: "pot", returns });
+for (const row of r.rows) PRINT(row.order.padEnd(12), show(row.outcome, 2).padStart(12));
+PRINT("does the order matter?", r.orderMatters, "| spread", show(r.spread, 2));
+sequenceRisk({ periods: 10, periodsPerYear: 1, accounts: [{ name: "pot", balance: 400000 }] }, { account: "pot", returns, shuffles: 5 }).orderMatters</textarea>
+  <div class="runbox-bar"><button type="button" data-run>Run</button><button type="button" class="ghost" data-reset>Reset</button><span class="runbox-meta">Ctrl/⌘ + Enter runs</span></div>
+  <div class="runbox-out" aria-live="polite"></div>
+</section>
+<footer class="sitelinks"><a href="https://github.com/ratmath/finance">GitHub</a> · <a href="https://ratmath.com/">ratmath.com</a> · <a href="https://ratmath.com/shelf/">shelf</a> · <a href="https://ratmath.com/core/">core</a></footer>
+</article>
+</main>
+</div>
+</body>
+</html>

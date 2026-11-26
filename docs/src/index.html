@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RatMath Finance</title>
-<meta name="description" content="The mathematics of finance with exact money: rounding by stated rules, time value, loans, cash flows with every internal rate of return, bonds and yield curves, and scenarios projected exactly.">
+<meta name="description" content="The mathematics of finance with exact money: rounding by stated rules, time value, loans, cash flows with every internal rate of return, bonds and yield curves, scenarios projected exactly and run many times with uncertain inputs, portfolios, options and life contingencies.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
@@ -43,6 +43,7 @@ round("2.345", { mode: "half-up" });     // 2.35</code></pre>
 <h2>Three kinds of answer</h2>
 <p><strong>Exact.</strong> Anything that is arithmetic on amounts and rates over whole periods: payments, schedules, present values, bond prices on coupon dates, durations, discount factors, projections. These are Core <code>Rational</code>s.</p>
 <p><strong>Certified.</strong> Anything that needs a root or an exponential: a yield, a rate of return, continuous compounding, a fractional period. These come back as a <code>Rational</code> when the answer happens to be rational (a loan's rate of 1/200 a month is found as exactly that) and otherwise as a <code>RationalInterval</code> proven to contain the answer, as narrow as you ask with <code>digits</code>.</p>
+<p><strong>Simulated.</strong> The results of seeded repeated runs (<a href="uncertain.html">uncertain inputs</a>). Each carries its seed, so it can be repeated exactly, and its own sampling error: a chance of running out comes with an exact interval for the true probability.</p>
 <p><strong>Rounded.</strong> Only where you say, by a rule with a name: <code>round(x, { places, mode })</code>. <code>show(x, places)</code> prints either kind; for an interval it prints the correctly rounded value when both ends round to it.</p>
 <p>Inputs are whole numbers or strings: <code>"1234.56"</code>, <code>"$1,234.56"</code>, <code>"7/8"</code>, <code>"4.5%"</code>. A JavaScript number that is not whole is refused, since <code>0.1</code> is not one tenth.</p>
 
@@ -50,7 +51,7 @@ round("2.345", { mode: "half-up" });     // 2.35</code></pre>
 <p>No market data, no tax tables and no advice are built in. You supply the numbers; the library does the arithmetic and tells you how sure it is.</p>
 
 <h2>Still to come</h2>
-<p>Uncertain inputs and repeated runs of a scenario from a seeded generator; portfolios, options and life contingencies; pictures. The <code>plan</code> export lists the phases, from the <a href="https://github.com/ratmath/ratmath/blob/main/docs/design/library-roadmap.md#12-a-finance-package-ratmathfinance">library roadmap</a>, and the <a href="https://ratmath.com/shelf/">RatMath Shelf</a> page lists what exists across all the libraries.</p>
+<p>Pictures: balance and amortisation charts, percentile bands, yield curves and option payoffs, in the graphics library. The <code>plan</code> export lists the phases, from the <a href="https://github.com/ratmath/ratmath/blob/main/docs/design/library-roadmap.md#12-a-finance-package-ratmathfinance">library roadmap</a>, and the <a href="https://ratmath.com/shelf/">RatMath Shelf</a> page lists what exists across all the libraries.</p>
 <template data-runbox>
 const l = loan({ principal: 250000, rate: "6%", periods: 360 });
 PRINT("payment", show(l.payment, 2), " exactly", show(l.exactPayment, 8), "before rounding");

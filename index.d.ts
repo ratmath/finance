@@ -323,6 +323,8 @@ export interface AccountSpec {
   /** Annual rate, applied each period as rate/periodsPerYear; a negative balance is charged the same way. */
   rate?: Input;
   rateChanges?: { from: When; rate: Input }[];
+  /** One annual rate per period, overriding the others while it lasts (what a simulation writes in). */
+  rates?: Input[];
 }
 export interface FlowSpec {
   name?: string;
@@ -336,6 +338,8 @@ export interface FlowSpec {
   every?: number;
   /** Applied once a year from the flow's start. */
   growth?: Input;
+  /** One multiplier per period (a zero skips that period): how inflation and random events are written in. */
+  index?: Input[];
   /** Stop when the `to` account is no longer in debt. */
   until?: "paid";
   /** Where the money goes once that happens. */
@@ -393,3 +397,186 @@ export function sensitivity<K extends string>(
   inputs: Record<K, Amount>,
   options?: { measure?: (p: Projection) => Rational | Dual },
 ): { base: Rational; rows: { input: K; value: Rational; derivative: Rational; perPercent: Rational; elasticity: Rational | null }[]; most: K | null };
+
+// ---- uncertain inputs and repeated runs (phase 5) --------------------------------
+
+/** Anything with sample(rng): a distribution from @ratmath/stats, or your own. */
+export interface Sampler { sample(rng: unknown): number | bigint | Rational }
+export class Process {
+  name: string;
+  kind: string;
+  /** Growth factors, one per period (1 + the return or interest for that period). */
+  path(rng: unknown, periods: number, periodsPerYear?: number): Rational[];
+  /** The same path as annual nominal rates per period, the form a scenario account takes. */
+  rates(rng: unknown, periods: number, periodsPerYear?: number): Rational[];
+}
+export const processes: {
+  fixed(rate: Amount): Process;
+  independent(dist: Sampler): Process;
+  /** Annual returns from a finite list with exact weights: small cases can be enumerated exactly. */
+  choice(values: Amount[], weights?: Amount[]): Process;
+  sequence(returns: Amount[]): Process;
+  resample(history: Amount[], options?: { block?: number }): Process;
+  gbm(spec: { drift: Amount; volatility: Amount }): Process;
+  walk(spec: { start: Amount; step: Sampler; min?: Amount; max?: Amount }): Process;
+  meanReverting(spec: { start: Amount; mean: Amount; speed: Amount; volatility: Amount; floor?: Amount | null }): Process;
+};
+export interface RandomEvent {
+  name: string;
+  /** Per year by default, or per period with per: "period". */
+  probability: Amount;
+  per?: "year" | "period";
+  amount: Amount | Sampler;
+  from?: string;
+  to?: string;
+  once?: boolean;
+  start?: number;
+  end?: number;
+  /** Grow the amount with inflation. */
+  indexed?: boolean;
+}
+export interface SimulatedRate {
+  kind: "simulated";
+  rate: Rational;
+  hits: number;
+  runs: number;
+  seed: unknown;
+  interval: { low: Rational; high: Rational; level: Rational };
+  compare(value: Amount): "below" | "inside" | "above";
+}
+export class Simulation {
+  kind: "simulated";
+  name?: string;
+  seed: unknown;
+  runs: number;
+  rounding: Rounding;
+  /** One outcome per run, in run order. */
+  outcomes: Rational[];
+  sorted: Rational[];
+  mean: Rational;
+  standardError: Certified | null;
+  percentiles: Record<string, Rational>;
+  /** How often an account that started at or above zero went below it, with an exact interval. */
+  ruin: SimulatedRate;
+  ruinTimes: number[];
+  /** Percentiles of the tracked quantity at each period. */
+  bands: Array<{ period: number } & Record<string, Rational>>;
+  /** Outcomes in today's money, when there is inflation. */
+  real: { outcomes: Rational[]; mean: Rational; median: Rational } | null;
+  quantile(p: Amount): Rational;
+}
+export function simulate(
+  spec: ScenarioSpec,
+  options?: {
+    returns?: Record<string, Process>;
+    inflation?: Process | null;
+    indexed?: string[];
+    events?: RandomEvent[];
+    runs?: number;
+    seed?: unknown;
+    rounding?: Rounding;
+    measure?: (p: Projection) => Rational;
+    ruin?: (p: Projection) => boolean;
+    level?: Amount;
+    percentiles?: Amount[];
+    track?: string;
+    name?: string;
+  },
+): Simulation;
+export function sequenceRisk(
+  spec: ScenarioSpec,
+  options: { account: string; returns: Amount[]; shuffles?: number; seed?: unknown; measure?: (p: Projection) => Rational },
+): { rows: { order: string; returns: Rational[]; outcome: Rational; firstNegative: Projection["firstNegative"] }[]; best: string; worst: string; spread: Rational; orderMatters: boolean };
+
+// ---- portfolios, options, life contingencies (phase 6) ----------------------------
+
+export interface PortfolioResult {
+  weights: Record<string, Rational>;
+  w: Rational[];
+  expectedReturn: Rational;
+  variance: Rational;
+  risk: Certified;
+}
+export class Portfolio {
+  constructor(spec: { names?: string[]; means?: Amount[]; covariance?: Amount[][]; returns?: Amount[][]; riskFree?: Amount | null });
+  names: string[];
+  means: Rational[];
+  covariance: Rational[][];
+  expectedReturn(w: Amount[]): Rational;
+  variance(w: Amount[]): Rational;
+  risk(w: Amount[], options?: { bits?: number }): Certified;
+  constants(): { invOnes: Rational[]; invMeans: Rational[]; A: Rational; B: Rational; C: Rational; D: Rational };
+  minimumVariance(): PortfolioResult;
+  /** Short sales allowed; exact closed form. */
+  frontier(target: Amount): PortfolioResult;
+  /** No short sales, up to 12 assets; `certificate` holds the KKT multipliers that prove the minimum. */
+  frontierLongOnly(target: Amount): PortfolioResult & { support: string[]; certificate: { lambda: Rational; gamma: Rational } | null };
+  tangency(riskFree?: Amount): PortfolioResult & { sharpeSquared: Rational; sharpe: Certified; riskFree: Rational };
+}
+export function portfolio(spec: ConstructorParameters<typeof Portfolio>[0]): Portfolio;
+export function returnsFrom(prices: Amount[]): Rational[];
+export function capm(spec: { asset: Amount[]; market: Amount[]; riskFree?: Amount; marketReturn?: Amount | null }): { beta: Rational; alpha: Rational; required: Rational; marketPremium: Rational; riskFree: Rational };
+export function solveExact(M: Rational[][], b: Rational[]): Rational[] | null;
+
+export interface Leg { type: "call" | "put" | "stock" | "bond"; strike?: Amount; premium?: Amount; quantity?: Amount }
+export function strategy(legs: Leg[]): {
+  legs: Leg[];
+  cost: Rational;
+  payoff(spot: Amount): Rational;
+  profit(spot: Amount): Rational;
+  kinks: Rational[];
+  breakEvens: Rational[];
+  maxProfit: Rational | null;
+  maxLoss: Rational | null;
+};
+export function parity(spec: { call?: Amount; put?: Amount; spot?: Amount; strike?: Amount; rate: Amount; time: Amount; compounding?: "continuous" | "annual"; bits?: number }): {
+  call?: Certified; put?: Certified; spot?: Certified; strike?: Certified; gap?: Certified; holds?: boolean | null;
+};
+export function binomialTree(spec: {
+  spot: Amount; strike: Amount; steps: number; type?: "call" | "put"; style?: "european" | "american";
+  up?: Amount; down?: Amount; growth?: Amount; volatility?: Amount; time?: Amount; rate?: Amount; places?: number; keepTree?: boolean; float?: boolean;
+}): {
+  /** A number when float is true. */
+  price: Rational | number;
+  probability: Rational | number;
+  up: Rational | number; down: Rational | number; growth: Rational | number;
+  delta: Rational | number;
+  rounded: boolean;
+  approximate?: true;
+  earlyExercise: { step: number; ups: number; price: Rational }[] | null;
+  tree: Rational[][] | null;
+};
+export function normalCdf(x: Amount | RationalInterval, bits?: number): RationalInterval;
+export function normalPdf(x: Amount | RationalInterval, bits?: number): RationalInterval;
+export function blackScholes(spec: { spot: Amount; strike: Amount; rate: Amount; volatility: Amount; time: Amount; dividendYield?: Amount; bits?: number }): {
+  call: RationalInterval; put: RationalInterval; d1: RationalInterval; d2: RationalInterval;
+  delta: { call: RationalInterval; put: RationalInterval };
+  gamma: RationalInterval; vega: RationalInterval;
+  theta: { call: RationalInterval; put: RationalInterval };
+  rho: { call: RationalInterval; put: RationalInterval };
+};
+export function impliedVolatility(spec: { price: Amount; type?: "call" | "put"; spot: Amount; strike: Amount; rate: Amount; time: Amount; dividendYield?: Amount; digits?: number; bits?: number }): RationalInterval;
+
+export class LifeTable {
+  constructor(spec: { l?: Amount[]; q?: Amount[]; radix?: Amount; startAge?: number });
+  startAge: number;
+  lastAge: number;
+  lives: Rational[];
+  l(x: number): Rational;
+  d(x: number): Rational;
+  p(x: number, t?: number): Rational;
+  q(x: number, t?: number): Rational;
+  deferredQ(x: number, u: number, t?: number): Rational;
+  curtateExpectation(x: number): Rational;
+  completeExpectation(x: number): Rational;
+  rows(): { age: number; l: Rational; d: Rational; q: Rational; p: Rational; e: Rational }[];
+}
+export function lifeTable(spec: ConstructorParameters<typeof LifeTable>[0]): LifeTable;
+export function deMoivre(omega: number, options?: { startAge?: number }): LifeTable;
+export function lifeAnnuity(table: LifeTable, spec: { age: number; rate: Amount; term?: number | null; due?: boolean; deferred?: number }): Rational;
+export function lifeInsurance(table: LifeTable, spec: { age: number; rate: Amount; term?: number | null; deferred?: number }): Rational;
+export function pureEndowment(table: LifeTable, spec: { age: number; rate: Amount; term: number }): Rational;
+export function endowment(table: LifeTable, spec: { age: number; rate: Amount; term: number }): Rational;
+type PolicyKind = "whole life" | "term" | "endowment";
+export function netPremium(table: LifeTable, spec: { kind?: PolicyKind; benefit?: Amount; age: number; rate: Amount; term?: number | null; payments?: number | null }): Rational;
+export function reserve(table: LifeTable, spec: { kind?: PolicyKind; benefit?: Amount; age: number; rate: Amount; term?: number | null; payments?: number | null; time: number }): Rational;

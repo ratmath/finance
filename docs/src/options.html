@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Options · RatMath Finance</title>
+<meta name="description" content="Payoffs and strategies with exact break-even prices, put–call parity, the binomial tree exactly, and Black–Scholes values, sensitivities and implied volatility as certified enclosures.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Options</h1>
+<p class="lede">An option's payoff at expiry is a piecewise-linear function of the price, so strategies and their break-even prices are exact. A binomial tree with rational factors gives an exact price. The Black–Scholes formula involves logarithms, square roots and the normal distribution; its values come back as intervals proven to contain them.</p>
+<pre><code>strategy([{ type: "call", strike: 100, premium: 5 }, { type: "put", strike: 100, premium: 4 }]).breakEvens;  // [91, 109]
+binomialTree({ spot: 50, strike: 52, steps: 2, up: "6/5", down: "4/5", growth: "21/20", type: "put", style: "american" }).price;
+const v = blackScholes({ spot: 100, strike: 100, rate: "5%", volatility: "20%", time: 1 });
+show(v.call, 6);       // "10.450584"
+v.delta.call;          // N(d1), enclosed
+impliedVolatility({ price: "10.45", spot: 100, strike: 100, rate: "5%", time: 1 });</code></pre>
+
+<h2>Payoffs and strategies</h2>
+<p>A call with strike K pays \(\max(S-K, 0)\) at expiry and a put pays \(\max(K-S, 0)\). <code>strategy(legs)</code> combines calls, puts, the stock and a bond, each with a premium and a quantity (negative for a short position). Profit is linear between strikes, so each break-even price is found by solving a linear equation on each piece, exactly. The maximum profit and loss are read off the corners, or are unbounded when the last slope is not zero.</p>
+
+<h2>Put–call parity</h2>
+<p>A call bought and a put sold, both with strike K, pay \(S - K\) at expiry, whatever happens. That is the same as holding the stock and owing K, so for European options on a stock without dividends</p>
+\[C - P = S - K e^{-rT}.\]
+<p><code>parity</code> finds whichever of the four is missing. Given all four it returns the gap, which is zero when no arbitrage is possible. With continuous compounding \(e^{-rT}\) is enclosed. With <code>compounding: "annual"</code> and whole years it is an exact fraction.</p>
+
+<h2>The binomial tree</h2>
+<p>In each step the price moves up by a factor u or down by d, and money grows by g. Holding Δ shares and some cash can copy the option's value in both outcomes, so its price is fixed. Equivalently, the price is the expected payoff discounted under the risk-neutral probability</p>
+\[p = \frac{g - d}{u - d},\]
+<p>which lies strictly between 0 and 1 exactly when \(d < g < u\). If that fails, the tree has an arbitrage and is refused. Working back from expiry gives the price as an exact fraction. For an American option, each node also compares the value of exercising now; the nodes where that wins are listed in <code>earlyExercise</code>. Without dividends an American call is never exercised early, and the tests check that its price equals the European one exactly.</p>
+<p>Given a volatility instead, the Cox–Ross–Rubinstein tree takes \(u = e^{\sigma\sqrt{\Delta t}}\), \(d = 1/u\), \(g = e^{r\Delta t}\). These are rounded to 8 decimal places, and the result says <code>rounded: true</code>. The exact tree's fractions grow with every step, so 100 steps take about a second. <code>float: true</code> runs the same induction in floating point for a quick preview.</p>
+
+<h2>Black–Scholes</h2>
+<p>As the steps shrink the tree's price converges to the Black–Scholes value</p>
+\[C = S N(d_1) - K e^{-rT} N(d_2),\qquad d_{1,2} = \frac{\ln(S/K) + (r \pm \sigma^2/2)T}{\sigma\sqrt T},\]
+<p>and \(P = K e^{-rT}N(-d_2) - S N(-d_1)\). Here N is the normal distribution function, computed as \(\tfrac12\big(1 + \operatorname{erf}(x/\sqrt2)\big)\) from analytic's certified error function. Every quantity is an interval proven to contain the true value. That includes the sensitivities: delta \(N(d_1)\), gamma \(\varphi(d_1)/(S\sigma\sqrt T)\), vega \(S\varphi(d_1)\sqrt T\), theta and rho. A dividend yield q replaces S by \(Se^{-qT}\).</p>
+<p>The price rises with volatility, since vega is positive. So the implied volatility, the σ that reproduces a market price, can be found by bisection. Each step decides from certified values which half the answer is in, and the result is an interval proven to contain it.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>strategy(legs)</td><td>{ payoff(S), profit(S), cost, kinks, breakEvens, maxProfit, maxLoss }</td></tr>
+<tr><td>parity({ call, put, spot, strike, rate, time, compounding })</td><td>the missing one, or { gap, holds }</td></tr>
+<tr><td>binomialTree({ spot, strike, steps, type, style, up, down, growth } or { volatility, time, rate })</td><td>{ price, probability, delta, earlyExercise, rounded, tree }</td></tr>
+<tr><td>blackScholes({ spot, strike, rate, volatility, time, dividendYield })</td><td>{ call, put, d1, d2, delta, gamma, vega, theta, rho }, all enclosed</td></tr>
+<tr><td>impliedVolatility({ price, type, spot, strike, rate, time, digits })</td><td>an interval containing σ</td></tr>
+<tr><td>normalCdf(x), normalPdf(x)</td><td>enclosures</td></tr>
+</table></div>
+<template data-runbox>
+const legs = { straddle: [{ type: "call", strike: 100, premium: 5 }, { type: "put", strike: 100, premium: 4 }],
+  "bull spread": [{ type: "call", strike: 90, premium: 12 }, { type: "call", strike: 110, premium: 3, quantity: -1 }],
+  "covered call": [{ type: "stock", premium: 100 }, { type: "call", strike: 110, premium: 4, quantity: -1 }] };
+for (const [name, l] of Object.entries(legs)) {
+  const s = strategy(l);
+  PRINT(name.padEnd(13), "break even at", s.breakEvens.map(String).join(" and "), "| max profit", String(s.maxProfit ?? "unlimited"), "| max loss", String(s.maxLoss ?? "unlimited"));
+}
+const v = blackScholes({ spot: 100, strike: 100, rate: "5%", volatility: "20%", time: 1 });
+PRINT("Black–Scholes call", show(v.call, 8), "put", show(v.put, 8), "delta", show(v.delta.call, 6), "vega", show(v.vega, 6));
+for (const n of [10, 50, 100]) PRINT(`binomial tree, ${n} steps (exact):`, show(binomialTree({ spot: 100, strike: 100, steps: n, volatility: "20%", time: 1, rate: "5%" }).price, 6));
+PRINT("5000 steps in floating point:", binomialTree({ spot: 100, strike: 100, steps: 5000, volatility: "20%", time: 1, rate: "5%", float: true }).price.toFixed(6));
+const am = binomialTree({ spot: 50, strike: 52, steps: 2, up: "6/5", down: "4/5", growth: "21/20", type: "put", style: "american" });
+PRINT("American put, two steps:", String(am.price), "exercise early at", am.earlyExercise.map((e) =&gt; `step ${e.step}, price ${e.price}`).join("; "));
+show(impliedVolatility({ price: "12", spot: 100, strike: 100, rate: "5%", time: 1 }), 6)
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

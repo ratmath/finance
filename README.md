@@ -47,16 +47,19 @@ the numbers.
 | Cash flows | `npv`, `xnpv`, `irr` (every rate), `xirr`, `mirr`, `payback`, `realValue`, `nominalValue`, `depreciation`, `taxSchedule` |
 | Bonds and rates | `bond` (price, yield, accrued interest, duration, convexity), `bootstrap`, `yieldCurve` (spot, forward, par yield), `immunise` |
 | Scenarios | `scenario` and `.project()`, `compare`, `sensitivity` (exact derivatives) |
+| Uncertain inputs | `processes` (fixed, independent, choice, sequence, resample, gbm, walk, meanReverting), `simulate` (seeded runs: ruin with an exact interval, percentiles, bands, real values, random events), `sequenceRisk` |
+| Portfolios | `portfolio` (frontier exactly, long-only with a KKT certificate, tangency), `capm`, `returnsFrom` |
+| Options | `strategy` (exact break-evens), `parity`, `binomialTree` (exact, European or American), `blackScholes` and `impliedVolatility` (certified) |
+| Life contingencies | `lifeTable`, `deMoivre`, `lifeAnnuity`, `lifeInsurance`, `pureEndowment`, `endowment`, `netPremium`, `reserve` |
 
 Results are Core `Rational`s when exact, and `RationalInterval`s proven to
-contain the value when a root or an exponential is involved.
+contain the value when a root or an exponential is involved. Simulated
+results carry their seed and their sampling error.
 
 ## Still planned
 
 | Phase | Contents |
 |---|---|
-| 5 | Uncertain inputs and repeated runs |
-| 6 | Portfolios, options, life contingencies |
 | 7 | Pictures |
 
 The plan is in the
@@ -67,8 +70,10 @@ and `plan` exports the list.
 
 - `index.js`, `src/`: the library. `money.js` (amounts, rounding, dates),
   `solve.js` (rates as roots), `tvm.js`, `loans.js`, `cashflow.js`,
-  `bonds.js`, `scenario.js`, `plan.js`.
-- `vendor/analytic`, `vendor/algebraic`: git submodules, used as workspaces.
+  `bonds.js`, `scenario.js`, `uncertain.js`, `portfolio.js`, `options.js`,
+  `life.js`, `plan.js`.
+- `vendor/analytic`, `vendor/algebraic`, `vendor/stats`, `vendor/discrete`:
+  git submodules, used as workspaces.
   Clone with `--recurse-submodules`.
 - `tests/`: `bun run test`.
 - `docs/src/*.html`: the docs pages. `bun run docs:build` writes `docs/`,

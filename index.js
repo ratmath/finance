@@ -12,3 +12,7 @@ export { loan, levelPayment, compareLoans, refinance, revolving, loanAPR } from 
 export { npv, xnpv, irr, xirr, mirr, payback, realValue, nominalValue, depreciation, DEPRECIATION, taxSchedule } from "./src/cashflow.js";
 export { Bond, bond, YieldCurve, yieldCurve, bootstrap, immunise } from "./src/bonds.js";
 export { Scenario, scenario, compare, sensitivity, Dual } from "./src/scenario.js";
+export { Process, processes, simulate, Simulation, sequenceRisk } from "./src/uncertain.js";
+export { Portfolio, portfolio, returnsFrom, capm, solveExact } from "./src/portfolio.js";
+export { strategy, parity, binomialTree, blackScholes, impliedVolatility, normalCdf, normalPdf } from "./src/options.js";
+export { LifeTable, lifeTable, deMoivre, lifeAnnuity, lifeInsurance, pureEndowment, endowment, netPremium, reserve } from "./src/life.js";

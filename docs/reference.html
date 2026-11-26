@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="assets/style.css?v=97c105e03e">
-<script type="module" src="assets/site.js?v=97c105e03e"></script>
+<link rel="stylesheet" href="assets/style.css?v=a31feff937">
+<script type="module" src="assets/site.js?v=a31feff937"></script>
 </head>
 <body>
 <div class="shell">
@@ -85,6 +85,24 @@
 <tr><td>sensitivity(build, inputs, { measure })</td><td>The exact derivative of the outcome in each input, ranked.</td></tr>
 <tr><td>Dual</td><td>A value with its derivative, as passed to <code>build</code>: add, subtract, multiply, divide, pow.</td></tr>
 <tr><td>plan</td><td>The phases still to come, each { phase, contents, estimate }.</td></tr>
+</table></div>
+<h2>Uncertain inputs</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>processes.fixed, independent, choice, sequence, resample, gbm, walk, meanReverting; Process</td><td>Paths of growth factors from a seeded stream. See <a href="uncertain.html">Uncertain inputs</a>.</td></tr>
+<tr><td>simulate(spec, { returns, inflation, indexed, events, runs, seed, … }), Simulation</td><td>Many seeded runs: outcomes, mean, standardError, percentiles, quantile, ruin (exact interval), bands, real.</td></tr>
+<tr><td>sequenceRisk(spec, { account, returns, shuffles })</td><td>The same returns in different orders; orderMatters and spread.</td></tr>
+</table></div>
+<h2>Portfolios, options, life contingencies</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>portfolio({ means, covariance } or { returns }), Portfolio</td><td>expectedReturn, variance, risk, minimumVariance, frontier, frontierLongOnly, tangency. See <a href="portfolios.html">Portfolios</a>.</td></tr>
+<tr><td>capm, returnsFrom, solveExact</td><td>Beta, alpha and required return; returns from prices; an exact linear solve.</td></tr>
+<tr><td>strategy(legs), parity(…)</td><td>Payoffs and exact break-even prices; put–call parity. See <a href="options.html">Options</a>.</td></tr>
+<tr><td>binomialTree(…)</td><td>Exact European and American prices on a binomial tree; <code>float: true</code> for a preview.</td></tr>
+<tr><td>blackScholes(…), impliedVolatility(…), normalCdf, normalPdf</td><td>Certified values and sensitivities; σ by certified bisection.</td></tr>
+<tr><td>lifeTable, deMoivre, LifeTable</td><td>Life tables from l or q. See <a href="life.html">Life contingencies</a>.</td></tr>
+<tr><td>lifeAnnuity, lifeInsurance, pureEndowment, endowment, netPremium, reserve</td><td>Exact present values, premiums and reserves.</td></tr>
 </table></div>
 <section class="runbox" aria-label="Runnable code">
   <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>

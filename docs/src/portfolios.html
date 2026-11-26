@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portfolios · RatMath Finance</title>
+<meta name="description" content="Expected return and risk of a mix of assets, the efficient frontier exactly, long-only portfolios proven optimal, the tangency portfolio and the capital asset pricing model.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Portfolios</h1>
+<p class="lede">A portfolio is a list of weights. Its expected return is a weighted sum and its variance a quadratic form, so with rational data both are exact fractions, and so is the whole efficient frontier. Only a standard deviation, a square root, comes back as an interval.</p>
+<pre><code>const p = portfolio({
+  names: ["bonds", "shares", "property"],
+  means: ["4%", "8%", "6%"],
+  covariance: [["1/400", "1/1000", "0"], ["1/1000", "1/25", "1/100"], ["0", "1/100", "1/50"]],
+});
+p.minimumVariance();          // weights, expected return, variance (exact) and risk (enclosed)
+p.frontier("6%");             // the least risk for a 6% expected return, short sales allowed
+p.frontierLongOnly("6%");     // the same with every weight ≥ 0, with a certificate
+p.tangency("2%");             // the best ratio of excess return to risk
+capm({ asset, market, riskFree: "2%" });   // beta, alpha and the required return</code></pre>
+
+<h2>Return and risk</h2>
+<p>With expected returns μ and covariance matrix Σ, weights w (adding to 1) give expected return \(w^\top\mu\) and variance \(w^\top\Sigma w\). The data can be given as means and covariances, or as lists of past returns (<code>returnsFrom(prices)</code> turns prices into returns), from which the sample means and covariances are computed exactly.</p>
+
+<h2>The efficient frontier</h2>
+<p>For a target expected return m, the least-variance portfolio with short sales allowed minimises \(w^\top\Sigma w\) subject to \(\mathbf 1^\top w = 1\) and \(\mu^\top w = m\). Lagrange multipliers give the solution in closed form. With</p>
+\[A = \mathbf 1^\top\Sigma^{-1}\mathbf 1,\quad B = \mathbf 1^\top\Sigma^{-1}\mu,\quad C = \mu^\top\Sigma^{-1}\mu,\quad D = AC - B^2,\]
+<p>the weights are \(w = \Sigma^{-1}(\lambda\mathbf 1 + \gamma\mu)\) with \(\lambda = (C - Bm)/D\), \(\gamma = (Am - B)/D\), and the variance is \((Am^2 - 2Bm + C)/D\), a parabola in m. Everything here is a fraction when the data are. The minimum-variance portfolio is the vertex, \(w = \Sigma^{-1}\mathbf 1/A\).</p>
+
+<h2>No short sales</h2>
+<p>Requiring every weight to be at least zero turns the problem into a quadratic program, with no closed form. For a few assets it can still be solved exactly. For each set S of assets that might be held, solve the equality-constrained problem on S, which is a linear system. Keep the solution if its weights are not negative and if, for every asset left out, \(2(\Sigma w)_j - \lambda - \gamma\mu_j \ge 0\), which means adding a little of that asset would not lower the variance. These are the Karush–Kuhn–Tucker conditions. The problem is convex, so meeting them proves the minimum. The multipliers are returned as the <code>certificate</code>. Trying every subset limits this to 12 assets.</p>
+
+<h2>The tangency portfolio and CAPM</h2>
+<p>With a risk-free rate r, the portfolio with the largest Sharpe ratio \((w^\top\mu - r)/\sqrt{w^\top\Sigma w}\) has weights proportional to \(\Sigma^{-1}(\mu - r\mathbf 1)\). Its squared Sharpe ratio is the exact fraction \((\mu - r\mathbf 1)^\top\Sigma^{-1}(\mu - r\mathbf 1)\).</p>
+<p>The capital asset pricing model says an asset's expected return is \(r + \beta(E[R_m] - r)\) with \(\beta = \operatorname{cov}(R, R_m)/\operatorname{var}(R_m)\). <code>capm</code> computes β from paired returns, the required return, and α, the average return in excess of what the model requires.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>portfolio({ names, means, covariance } or { returns })</td><td>Portfolio</td></tr>
+<tr><td>.expectedReturn(w), .variance(w), .risk(w)</td><td>exact, exact, enclosed</td></tr>
+<tr><td>.minimumVariance(), .frontier(m)</td><td>{ weights, w, expectedReturn, variance, risk }</td></tr>
+<tr><td>.frontierLongOnly(m)</td><td>the same with support and certificate { lambda, gamma }</td></tr>
+<tr><td>.tangency(r)</td><td>the same with sharpeSquared and sharpe</td></tr>
+<tr><td>capm({ asset, market, riskFree, marketReturn })</td><td>{ beta, alpha, required, marketPremium }</td></tr>
+<tr><td>returnsFrom(prices)</td><td>simple returns, exact</td></tr>
+</table></div>
+<template data-runbox>
+const p = portfolio({
+  names: ["bonds", "shares", "property"],
+  means: ["4%", "8%", "6%"],
+  covariance: [["1/400", "1/1000", "0"], ["1/1000", "1/25", "1/100"], ["0", "1/100", "1/50"]],
+});
+const w = (r) =&gt; Object.entries(r.weights).map(([k, v]) =&gt; `${k} ${show(v, 3)}`).join(", ");
+const mv = p.minimumVariance();
+PRINT("least risk:", w(mv), "| return", show(mv.expectedReturn, 4), "risk", show(mv.risk, 4));
+PRINT("target   short sales allowed                       risk      long only                              risk");
+for (const m of ["5%", "6%", "7%", "8%"]) {
+  const f = p.frontier(m), g = p.frontierLongOnly(m);
+  PRINT(m.padEnd(8), w(f).padEnd(42), show(f.risk, 4), "   ", w(g).padEnd(38), show(g.risk, 4));
+}
+PRINT("variance at 6%, exactly:", String(p.frontier("6%").variance));
+const t = p.tangency("2%");
+PRINT("tangency at 2%:", w(t), "| Sharpe ratio", show(t.sharpe, 6), "= √(" + t.sharpeSquared + ")");
+capm({ asset: ["12%", "-4%", "9%", "15%", "2%"], market: ["10%", "-2%", "6%", "11%", "1%"], riskFree: "2%" })
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

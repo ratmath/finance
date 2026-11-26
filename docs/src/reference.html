@@ -82,6 +82,24 @@
 <tr><td>Dual</td><td>A value with its derivative, as passed to <code>build</code>: add, subtract, multiply, divide, pow.</td></tr>
 <tr><td>plan</td><td>The phases still to come, each { phase, contents, estimate }.</td></tr>
 </table></div>
+<h2>Uncertain inputs</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>processes.fixed, independent, choice, sequence, resample, gbm, walk, meanReverting; Process</td><td>Paths of growth factors from a seeded stream. See <a href="uncertain.html">Uncertain inputs</a>.</td></tr>
+<tr><td>simulate(spec, { returns, inflation, indexed, events, runs, seed, … }), Simulation</td><td>Many seeded runs: outcomes, mean, standardError, percentiles, quantile, ruin (exact interval), bands, real.</td></tr>
+<tr><td>sequenceRisk(spec, { account, returns, shuffles })</td><td>The same returns in different orders; orderMatters and spread.</td></tr>
+</table></div>
+<h2>Portfolios, options, life contingencies</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>portfolio({ means, covariance } or { returns }), Portfolio</td><td>expectedReturn, variance, risk, minimumVariance, frontier, frontierLongOnly, tangency. See <a href="portfolios.html">Portfolios</a>.</td></tr>
+<tr><td>capm, returnsFrom, solveExact</td><td>Beta, alpha and required return; returns from prices; an exact linear solve.</td></tr>
+<tr><td>strategy(legs), parity(…)</td><td>Payoffs and exact break-even prices; put–call parity. See <a href="options.html">Options</a>.</td></tr>
+<tr><td>binomialTree(…)</td><td>Exact European and American prices on a binomial tree; <code>float: true</code> for a preview.</td></tr>
+<tr><td>blackScholes(…), impliedVolatility(…), normalCdf, normalPdf</td><td>Certified values and sensitivities; σ by certified bisection.</td></tr>
+<tr><td>lifeTable, deMoivre, LifeTable</td><td>Life tables from l or q. See <a href="life.html">Life contingencies</a>.</td></tr>
+<tr><td>lifeAnnuity, lifeInsurance, pureEndowment, endowment, netPremium, reserve</td><td>Exact present values, premiums and reserves.</td></tr>
+</table></div>
 <template data-runbox>
 // One line from each part.
 PRINT("round:", show(round("1498.876313"), 2), "  allocate:", allocate(10, [1, 2, 3], { places: 2 }).map((x) =&gt; show(x, 2)).join(" "));
