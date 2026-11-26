@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life contingencies · RatMath Finance</title>
+<meta name="description" content="Life tables, survival probabilities, life annuities and insurances, net premiums and reserves, all exact for a rational table and rate.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Life contingencies</h1>
+<p class="lede">Life insurance and pensions value money that is paid only if someone is alive, or only when they die. With a life table of whole numbers and a rational interest rate, every present value is a fraction, and the identities that connect them hold exactly.</p>
+<pre><code>const L = lifeTable({ l: [100000, 99500, 98900, …], startAge: 60 });   // or { q: [...] }, or deMoivre(100)
+L.p(60, 10);                                            // probability a 60-year-old reaches 70
+lifeAnnuity(L, { age: 65, rate: "4%" });                // ä: 1 a year from now while alive
+lifeInsurance(L, { age: 40, rate: "4%", term: 20 });    // A: 1 at the end of the year of death, within 20 years
+netPremium(L, { kind: "endowment", benefit: 100000, age: 40, rate: "4%", term: 20 });
+reserve(L, { kind: "endowment", benefit: 100000, age: 40, rate: "4%", term: 20, time: 10 });</code></pre>
+
+<h2>The life table</h2>
+<p>A life table follows a group of \(l_x\) people alive at age x. Of them \(d_x = l_x - l_{x+1}\) die before x+1, so the probability of dying within a year is \(q_x = d_x/l_x\) and of surviving t years \({}_tp_x = l_{x+t}/l_x\). The table can be given as the \(l_x\) or as the \(q_x\) from a radix. It closes at the last age: everyone alive there dies within the year. No published table is built in; you supply the numbers. <code>deMoivre(ω)</code> gives the straight-line table \(l_x = \omega - x\), the classroom example.</p>
+<p>The curtate expectation of life, the whole years still to be lived, is \(e_x = \sum_{k\ge1} {}_kp_x\). If deaths are spread evenly through each year, the complete expectation is \(e_x + \tfrac12\).</p>
+
+<h2>Annuities and insurances</h2>
+<p>With \(v = 1/(1+i)\), a life annuity-due pays 1 at the start of each year while the person is alive,</p>
+\[\ddot a_x = \sum_{k\ge0} v^k\,{}_kp_x,\]
+<p>and whole life insurance pays 1 at the end of the year of death,</p>
+\[A_x = \sum_{k\ge0} v^{k+1}\,{}_kp_x\,q_{x+k}.\]
+<p>Term versions stop after n years, and deferred ones start after u. A pure endowment \({}_nE_x = v^n\,{}_np_x\) pays 1 at n if the person is alive, and an endowment insurance is term insurance plus that.</p>
+<p>Paying 1 at the end of the year of death is the same as paying d = i/(1+i) at the start of each year while alive, plus 1 at death. So \(A_x = 1 - d\,\ddot a_x\), and the same holds for an endowment with the n-year annuity. Because everything here is exact, the tests check this identity with <code>equals</code>, not with a tolerance.</p>
+
+<h2>Premiums and reserves</h2>
+<p>A level net premium P paid while alive must have the same present value as the benefit (the equivalence principle): \(P\,\ddot a = \text{benefit}\cdot A\). After t years the reserve is what the insurer must hold. It is the value then of the benefit still to come, less the value of the premiums still to come. It is zero at the start by construction, and for an endowment it reaches the benefit at the end of the term. For whole life it equals \(1 - \ddot a_{x+t}/\ddot a_x\) times the benefit.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>lifeTable({ l } or { q, radix }, startAge), deMoivre(ω)</td><td>LifeTable: l, d, p, q, deferredQ, curtateExpectation, completeExpectation, rows()</td></tr>
+<tr><td>lifeAnnuity(table, { age, rate, term, due, deferred })</td><td>exact</td></tr>
+<tr><td>lifeInsurance(table, { age, rate, term, deferred })</td><td>exact</td></tr>
+<tr><td>pureEndowment, endowment(table, { age, rate, term })</td><td>exact</td></tr>
+<tr><td>netPremium(table, { kind, benefit, age, rate, term, payments })</td><td>exact</td></tr>
+<tr><td>reserve(table, { …, time })</td><td>exact</td></tr>
+</table></div>
+<template data-runbox>
+const L = lifeTable({ q: ["1/200", "1/180", "1/160", "1/140", "1/120", "1/100", "1/80", "1/60", "1/45", "1/30", "1/20", "1/12", "1/7", "1/4", "1/2", "1"], radix: 100000, startAge: 60 });
+PRINT("age      l_x       q_x    e_x");
+for (const r of L.rows().filter((r) =&gt; r.age % 3 === 0)) PRINT(String(r.age).padEnd(4), show(r.l, 1).padStart(10), show(r.q, 5).padStart(9), show(r.e, 3).padStart(7));
+const i = "4%", d = amount("4/104");
+const a = lifeAnnuity(L, { age: 60, rate: i }), A = lifeInsurance(L, { age: 60, rate: i });
+PRINT("ä_60 =", show(a, 6), " A_60 =", show(A, 6), " A = 1 − d·ä exactly?", A.equals(amount(1).subtract(d.multiply(a))));
+const policy = { kind: "endowment", benefit: 10000, age: 60, rate: i, term: 10 };
+PRINT("10-year endowment of 10,000 at 60: net premium", show(netPremium(L, policy), 2));
+for (const t of [0, 2, 5, 8, 10]) PRINT("  reserve after", String(t).padStart(2), "years", show(reserve(L, { ...policy, time: t }), 2).padStart(10));
+deMoivre(100).curtateExpectation(40)
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

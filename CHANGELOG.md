@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 0.2.0
+
+- Uncertain inputs and repeated runs (roadmap phase 5): `processes` turn a
+  seeded stream into a path of growth factors (fixed, independent draws from
+  a `@ratmath/stats` distribution, a weighted choice, a given sequence,
+  block resampling of supplied history, geometric Brownian motion, a random
+  walk and a mean-reverting rate); `simulate` writes the paths, inflation
+  indexing and random one-off events into a scenario and projects it many
+  times, reporting the chance of ruin with an exact interval, percentiles,
+  bands over time and real values; `sequenceRisk` shows the effect of the
+  order of good and bad years (none, exactly, without flows). Scenarios gain
+  per-period `rates` on accounts and an `index` on flows.
+- Portfolios, options and life contingencies (phase 6): `portfolio` with the
+  efficient frontier in closed form, the long-only frontier with a KKT
+  certificate, the tangency portfolio and its Sharpe ratio; `capm`;
+  `strategy` payoffs with exact break-even prices; `parity`; `binomialTree`
+  (exact European and American prices, Cox–Ross–Rubinstein from a
+  volatility, a floating-point preview); `blackScholes` with every
+  sensitivity enclosed and `impliedVolatility` by certified bisection; life
+  tables (`lifeTable`, `deMoivre`), `lifeAnnuity`, `lifeInsurance`,
+  `pureEndowment`, `endowment`, `netPremium` and `reserve`, all exact.
+- Depends on `@ratmath/stats` (and through it `@ratmath/discrete`), vendored.
+
 ## 0.1.0
 
 - Money and time value (roadmap phase 1): exact `amount`s, `round` with seven

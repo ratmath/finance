@@ -1,8 +1,8 @@
 // Shared page furniture for the finance docs: the contents column, the theme
 // switch and the code boxes. Add each topic page to PAGES as it is written.
 
-import * as A from "./finance.js?v=97c105e03e";
-import { mountRunboxes } from "./runbox.js?v=97c105e03e";
+import * as A from "./finance.js?v=a31feff937";
+import { mountRunboxes } from "./runbox.js?v=a31feff937";
 
 export { A };
 
@@ -21,6 +21,11 @@ export const PAGES = [
   { href: "yield-curves.html", title: "Yield curves", blurb: "Spot and forward rates from bond prices; immunisation" },
   { group: "Simulation" },
   { href: "scenarios.html", title: "Scenarios", blurb: "Exact projection, what-if comparison and sensitivity" },
+  { href: "uncertain.html", title: "Uncertain inputs and repeated runs", blurb: "Random returns, inflation and events; seeded runs, ruin and bands" },
+  { group: "Markets and insurance" },
+  { href: "portfolios.html", title: "Portfolios", blurb: "The efficient frontier exactly, long only with a certificate, CAPM" },
+  { href: "options.html", title: "Options", blurb: "Payoffs, parity, the binomial tree exactly, certified Black–Scholes" },
+  { href: "life.html", title: "Life contingencies", blurb: "Life tables, annuities, insurances, premiums and reserves" },
 ];
 
 export const h = (tag, attrs = {}, ...kids) => {

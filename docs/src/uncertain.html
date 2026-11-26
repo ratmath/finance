@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uncertain inputs and repeated runs · RatMath Finance</title>
+<meta name="description" content="Random returns, inflation and one-off events written into a scenario; many seeded runs; the chance of running out; percentile bands; the order of good and bad years.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Uncertain inputs and repeated runs</h1>
+<p class="lede">A projection with fixed rates answers "what happens if things go as planned". Markets and prices do not, so a scenario can take its rates from a random process instead, and be run many times from one seed. Each run is still exact bookkeeping; what is uncertain is only the path, and every summary says how many runs it rests on and how far it could be off.</p>
+<pre><code>import { simulate, processes } from "@ratmath/finance";
+import { normal } from "@ratmath/stats";
+
+const retirement = {
+  periods: 360,                              // 30 years, monthly
+  accounts: [{ name: "pot", balance: 600000 }],
+  flows: [{ name: "spending", amount: 2500, from: "pot" }],
+};
+const s = simulate(retirement, {
+  returns: { pot: processes.gbm({ drift: "5%", volatility: "15%" }) },
+  inflation: processes.independent(normal("2.5/100", "1/100")),
+  indexed: ["spending"],                     // spending keeps up with prices
+  events: [{ name: "roof", probability: "4%", amount: 15000, from: "pot" }],
+  runs: 1000, seed: 1,
+});
+s.ruin;              // how often the pot ran out, with an exact 95% interval
+s.percentiles["5"];  // the final balance in a bad case
+s.bands;             // percentiles at every month, for a fan chart
+s.real.median;       // the median outcome in today's money</code></pre>
+
+<h2>Processes</h2>
+<p>A process turns a seeded random stream into a path: one growth factor per period, 1 plus that period's return or interest. Written into an account (through <code>returns</code>), the path replaces the account's fixed rate.</p>
+<div class="tablewrap"><table class="ref">
+<tr><th>process</th><th>each year or period</th></tr>
+<tr><td>processes.fixed(rate)</td><td>the same annual return every year: a baseline with no uncertainty</td></tr>
+<tr><td>processes.independent(dist)</td><td>an annual return drawn afresh from a distribution, such as <code>normal("7/100", "15/100")</code> from <code>@ratmath/stats</code></td></tr>
+<tr><td>processes.choice(values, weights)</td><td>an annual return from a short list with exact weights</td></tr>
+<tr><td>processes.sequence(returns)</td><td>the returns given, in order</td></tr>
+<tr><td>processes.resample(history, { block })</td><td>years drawn from history you supply, in blocks of consecutive years so that runs of good or bad years survive</td></tr>
+<tr><td>processes.gbm({ drift, volatility })</td><td>geometric Brownian motion: each period multiplies by \(\exp\big((\mu - \tfrac{\sigma^2}{2})\Delta t + \sigma\sqrt{\Delta t}\,Z\big)\), so a year grows by \(e^{\mu}\) on average</td></tr>
+<tr><td>processes.walk({ start, step, min, max })</td><td>an interest rate that moves by a random step once a year</td></tr>
+<tr><td>processes.meanReverting({ start, mean, speed, volatility, floor })</td><td>a Vasicek rate, \(r \leftarrow r + a(\theta - r)\Delta t + \sigma\sqrt{\Delta t}\,Z\): pulled back towards its mean</td></tr>
+</table></div>
+<p>An annual return R spread over m periods becomes the factor \((1+R)^{1/m}\) each period. With yearly periods that is R itself, exactly. Otherwise, and for every draw from a continuous distribution, the factor is a floating-point number that is rounded to 8 decimal places of the per-period rate. From that point on everything is exact, so two runs from the same seed agree to the cent on any machine.</p>
+
+<h2>Inflation and events</h2>
+<p><code>inflation</code> is a process for the price level. Flows named in <code>indexed</code> are multiplied by the price level at the start of their period, and <code>real</code> divides each outcome by the final price level, giving it in today's money. A fixed inflation rate reproduces a flow with the same <code>growth</code> exactly; the tests check that.</p>
+<p>An event is a one-off flow that happens with a stated probability each year (or each period with <code>per: "period"</code>), at a random point in that year. It can be limited to the first time with <code>once</code>, and its amount can be fixed or drawn from a distribution. A burst pipe, a gap in income, or an inheritance are events.</p>
+
+<h2>Many runs</h2>
+<p>Run i uses the stream <code>rng(seed).fork("run i")</code>, and each input within it has its own fork. So run 7 is the same whether you ask for 10 runs or 10,000, and adding an event does not change the returns. The summaries are simulated answers and say so:</p>
+<ul>
+<li><code>mean</code> is the exact average of the outcomes, and <code>standardError</code> is \(s/\sqrt{n}\), enclosed.</li>
+<li><code>ruin</code> is the fraction of runs in which an account that started at or above zero went below it. It is reported with an exact (Clopper–Pearson) interval for the true probability, so 37 of 1000 runs reads as "between 2.6% and 5.1%", not as 3.7%.</li>
+<li><code>percentiles</code>, <code>quantile(p)</code> and <code>bands</code> use the nearest-rank rule, so each value is one of the outcomes that actually occurred.</li>
+</ul>
+<p>Balances are rounded to the cent each period during a simulation, as a bank would round them, unless the scenario names another rule or you pass <code>rounding: false</code>. Without rounding, a balance after hundreds of random months is a fraction with thousands of digits.</p>
+
+<h2>Checking the machinery against exact answers</h2>
+<p>When each year's return is one of two values, three years have eight equally likely paths, and the probability of running out can be found exactly by projecting all eight. A simulation with <code>processes.choice</code> must then report an interval that contains that fraction. Its mean must be within a few standard errors of the exact mean of the eight outcomes, and every outcome must be one of the eight. The tests check these, and they also check that geometric Brownian motion's mean growth is \(e^{\mu T}\) within the sampling error.</p>
+
+<h2>The order of good and bad years</h2>
+<p>With no money going in or out, the order of returns cannot matter, because \((1+r_1)(1+r_2)(1+r_3)\) is the same product in any order. <code>sequenceRisk</code> confirms this exactly (<code>orderMatters: false</code>). Add withdrawals and the order matters a great deal. A bad year early, while the pot is large, takes more money out than the same bad year late. <code>sequenceRisk(spec, { account, returns })</code> applies the same returns in the given order, reversed, best first, worst first and in shuffled orders, and reports the spread.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>simulate(spec, { returns, inflation, indexed, events, runs, seed, rounding, measure, ruin, level, percentiles, track })</td><td>Simulation: outcomes, sorted, mean, standardError, percentiles, quantile(p), ruin, ruinTimes, bands, real</td></tr>
+<tr><td>sequenceRisk(spec, { account, returns, shuffles, seed, measure })</td><td>{ rows: [{ order, returns, outcome, firstNegative }], best, worst, spread, orderMatters }</td></tr>
+<tr><td>process.path(seed, periods, periodsPerYear)</td><td>the growth factors of one path</td></tr>
+</table></div>
+<template data-runbox>
+const plan = (spend) =&gt; ({ periods: 30, periodsPerYear: 1, accounts: [{ name: "pot", balance: 600000 }], flows: [{ name: "spending", amount: spend, from: "pot" }] });
+for (const spend of [20000, 24000, 30000]) {
+  const s = simulate(plan(spend), {
+    returns: { pot: processes.gbm({ drift: "7%", volatility: "15%" }) },
+    inflation: processes.independent(normal("25/1000", "1/100")), indexed: ["spending"],
+    runs: 400, seed: 1,
+  });
+  PRINT(`spend ${spend} a year: ran out in ${s.ruin.hits} of 400 runs (95% interval ${show(s.ruin.interval.low, 3)} to ${show(s.ruin.interval.high, 3)}); median left ${show(s.percentiles["50"], 0)}, in today's money ${show(s.real.median, 0)}`);
+}
+// the order of the same ten returns, with 40,000 a year taken out
+const returns = ["22%", "-18%", "9%", "14%", "-7%", "11%", "3%", "-25%", "16%", "8%"];
+const r = sequenceRisk({ periods: 10, periodsPerYear: 1, accounts: [{ name: "pot", balance: 400000 }], flows: [{ amount: 40000, from: "pot" }] }, { account: "pot", returns });
+for (const row of r.rows) PRINT(row.order.padEnd(12), show(row.outcome, 2).padStart(12));
+PRINT("does the order matter?", r.orderMatters, "| spread", show(r.spread, 2));
+sequenceRisk({ periods: 10, periodsPerYear: 1, accounts: [{ name: "pot", balance: 400000 }] }, { account: "pot", returns, shuffles: 5 }).orderMatters
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>
