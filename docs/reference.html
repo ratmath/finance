@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="assets/style.css?v=96c3f70868">
-<script type="module" src="assets/site.js?v=96c3f70868"></script>
+<link rel="stylesheet" href="assets/style.css?v=97c105e03e">
+<script type="module" src="assets/site.js?v=97c105e03e"></script>
 </head>
 <body>
 <div class="shell">
@@ -22,17 +22,82 @@
 <article>
 <div class="eyebrow">Reference</div>
 <h1>Everything in the library</h1>
-<p class="lede">Every export of <code>@ratmath/finance</code> will be listed here with what it takes and what it returns.</p>
-<p class="notice"><strong>Planned, not built yet.</strong> This site is the frame the package will grow into. The full plan is in the <a href="https://github.com/ratmath/ratmath/blob/main/docs/design/library-roadmap.md#12-a-finance-package-ratmathfinance">library roadmap</a>, and the <a href="https://ratmath.com/shelf/">RatMath Shelf</a> page lists what exists across all the libraries.</p>
-<div class="tablewrap"><table class="ref" id="ref">
+<p class="lede">Every export of <code>@ratmath/finance</code>, with what it takes and what it returns. Amounts and rates go in as whole numbers, Core <code>Rational</code>s or strings (<code>"1234.56"</code>, <code>"7/8"</code>, <code>"4.5%"</code>); a JavaScript number that is not whole is refused. Results are <code>Rational</code>s when exact and <code>RationalInterval</code>s, proven to contain the value, when a root or an exponential is involved; functions that return intervals take <code>digits</code>.</p>
+
+<h2>Money, rounding, dates</h2>
+<div class="tablewrap"><table class="ref">
 <tr><th>Export</th><th>What it does</th></tr>
-<tr><td>plan</td><td>The list of planned phases, each { phase, contents, estimate }. It is here so the package has something to load while it is empty, and it shrinks as phases are built.</td></tr>
+<tr><td>amount(x), rate(x)</td><td>Read an exact amount or rate.</td></tr>
+<tr><td>round(x, { places = 2, mode = "half-even" })</td><td>Round by a named rule: half-even, half-up, half-down, up, down, floor, ceil. See <a href="money.html">Money and rounding</a>.</td></tr>
+<tr><td>format(x, { places, mode, currency, separator, percent })</td><td>An amount as text, rounded for display.</td></tr>
+<tr><td>show(x, places)</td><td>A Rational or an interval as a decimal; an interval prints as one number when its rounding is certain.</td></tr>
+<tr><td>allocate(total, weights, { places })</td><td>Shares that add up to the total exactly.</td></tr>
+<tr><td>power(base, exponent, digits), exp(x, digits), ln(x, digits)</td><td>Exact when possible, otherwise enclosed.</td></tr>
+<tr><td>date(x), CalendarDate</td><td>A calendar date: addDays, addMonths, compareTo, equals. See <a href="dates.html">Dates and day counts</a>.</td></tr>
+<tr><td>daysBetween(a, b), dayCount(from, to, convention), DAY_COUNTS, isLeap(y)</td><td>Days, and { days, yearFraction } under a convention.</td></tr>
+<tr><td>FinanceError</td><td>What the library throws, with a <code>code</code>: inexact, bad-number, bad-rounding, bad-date, no-solution, negative-amortisation, never-repaid, bad-flows, bad-bond, bad-curve, bad-scenario and others.</td></tr>
+</table></div>
+
+<h2>Time value</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>simpleInterest(P, rate, time)</td><td>{ interest, total }.</td></tr>
+<tr><td>compound(P, rate, years, { periodsPerYear })</td><td>Growth at a nominal rate; periodsPerYear may be "continuous".</td></tr>
+<tr><td>effectiveRate(nominal, m), nominalRate(effective, m), equivalentRate(nominal, from, to)</td><td>Rates with the same annual growth.</td></tr>
+<tr><td>realRate(nominal, inflation)</td><td>Fisher's relation, exactly.</td></tr>
+<tr><td>presentValue(fv, rate, n), futureValue(pv, rate, n), discountFactor(rate, n)</td><td>One amount moved through n periods.</td></tr>
+<tr><td>annuity({ payment, rate, periods, due, growth, deferred })</td><td>{ presentValue, futureValue, total, payments }.</td></tr>
+<tr><td>perpetuity({ payment, rate, growth, due, deferred })</td><td>Present value.</td></tr>
+<tr><td>tvm({ pv, fv, pmt, rate, n, due })</td><td>Solves for the one left out. See <a href="time-value.html">Time value of money</a>.</td></tr>
+<tr><td>rateRoots(coefficients, { digits })</td><td>Every rate r &gt; −1 with Σ c<sub>k</sub>(1 + r)<sup>k</sup> = 0, proven: the solver behind tvm, irr and yields.</td></tr>
+</table></div>
+
+<h2>Loans and cash flows</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>loan({ principal, rate, periods, periodsPerYear, payment, rounding, extra, interestOnly, balloon, rateChanges })</td><td>A schedule: { payment, exactPayment, schedule, periods, finalPayment, balloon, totals }. See <a href="loans.html">Loans</a>.</td></tr>
+<tr><td>levelPayment(balance, periodicRate, periods, balloon)</td><td>The unrounded level payment.</td></tr>
+<tr><td>compareLoans(a, b), refinance(current, proposed, { costs, rollIn })</td><td>Side by side; break-even and savings.</td></tr>
+<tr><td>loanAPR({ principal, fees, payment, periods, periodsPerYear })</td><td>{ periodic, nominal, effective }.</td></tr>
+<tr><td>revolving({ balance, rate, payment, purchases, rounding })</td><td>A card balance run out.</td></tr>
+<tr><td>npv(rate, flows), xnpv(rate, datedFlows, { dayCount })</td><td>Net present value.</td></tr>
+<tr><td>irr(flows), xirr(datedFlows, { dayCount, range })</td><td>Every internal rate of return. See <a href="cash-flows.html">Cash flows</a>.</td></tr>
+<tr><td>mirr(flows, financeRate, reinvestRate), payback(flows, { rate })</td><td>The modified rate; payback period.</td></tr>
+<tr><td>realValue(nominal, inflation, n), nominalValue(real, inflation, n)</td><td>Across inflation.</td></tr>
+<tr><td>depreciation({ cost, salvage, life, method, factor, switchToStraightLine, units, rounding }), DEPRECIATION</td><td>A schedule by one of four methods.</td></tr>
+<tr><td>taxSchedule(brackets, { rounding })</td><td>{ on(income), brackets } from brackets you supply.</td></tr>
+</table></div>
+
+<h2>Bonds and curves</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>bond({ face, coupon, frequency, redemption, periods | settlement, maturity, dayCount }), Bond</td><td>price(yield), yield(cleanPrice), duration(yield), cashflows, accrued. See <a href="bonds.html">Bonds</a>.</td></tr>
+<tr><td>bootstrap(bonds, { frequency })</td><td>Exact discount factors from bond prices.</td></tr>
+<tr><td>yieldCurve({ spots | discountFactors, frequency }), YieldCurve</td><td>discount(k), spot(k), forward(a, b), parYield(k), price(bond). See <a href="yield-curves.html">Yield curves</a>.</td></tr>
+<tr><td>immunise({ liability, yield, bonds })</td><td>The split of two bonds that matches a liability's value and duration.</td></tr>
+</table></div>
+
+<h2>Scenarios</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>Export</th><th>What it does</th></tr>
+<tr><td>scenario({ periods, periodsPerYear, start, accounts, flows, rounding }), Scenario</td><td>.project() gives the table of balances. See <a href="scenarios.html">Scenarios</a>.</td></tr>
+<tr><td>compare(scenarios, { measure })</td><td>Outcomes side by side, differences and crossovers.</td></tr>
+<tr><td>sensitivity(build, inputs, { measure })</td><td>The exact derivative of the outcome in each input, ranked.</td></tr>
+<tr><td>Dual</td><td>A value with its derivative, as passed to <code>build</code>: add, subtract, multiply, divide, pow.</td></tr>
+<tr><td>plan</td><td>The phases still to come, each { phase, contents, estimate }.</td></tr>
 </table></div>
 <section class="runbox" aria-label="Runnable code">
   <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>
-  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">// The one export so far.
-for (const p of plan) PRINT(`phase ${p.phase}:`, p.contents, `(${p.estimate} lines)`);
-plan.length</textarea>
+  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">// One line from each part.
+PRINT("round:", show(round("1498.876313"), 2), "  allocate:", allocate(10, [1, 2, 3], { places: 2 }).map((x) =&gt; show(x, 2)).join(" "));
+PRINT("day count:", String(dayCount("2027-01-15", "2027-07-15", "actual/365").yearFraction));
+PRINT("annuity:", show(annuity({ payment: 500, rate: "0.4%", periods: 240 }).futureValue, 2));
+PRINT("loan:", show(loan({ principal: 18000, rate: "7.5%", periods: 60 }).payment, 2));
+PRINT("irr:", irr([-5000, 1500, 1500, 1500, 1500]).rates[0].text);
+PRINT("bond yield:", show(bond({ coupon: "3%", periods: 10 }).yield("96"), 6));
+PRINT("forward:", String(yieldCurve({ spots: ["2%", "3%"] }).forward(1, 2)));
+PRINT("scenario:", show(scenario({ periods: 12, accounts: [{ name: "a", balance: 100, rate: "12%" }] }).project().netWorth, 4));
+plan.map((p) =&gt; p.phase)</textarea>
   <div class="runbox-bar"><button type="button" data-run>Run</button><button type="button" class="ghost" data-reset>Reset</button><span class="runbox-meta">Ctrl/⌘ + Enter runs</span></div>
   <div class="runbox-out" aria-live="polite"></div>
 </section>

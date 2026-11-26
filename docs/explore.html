@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Finance Explorer</title>
-<meta property="og:title" content="Finance Explorer">
+<title>Explore · RatMath Finance</title>
+<meta property="og:title" content="Explore · RatMath Finance">
 <meta property="og:description" content="The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://ratmath.com/finance/explore.html">
-<meta name="description" content="Try @ratmath/finance without writing a program.">
+<meta name="description" content="Try @ratmath/finance in the page: a loan with its schedule and balance chart, and every rate of return of a cash flow you type.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="assets/style.css?v=96c3f70868">
-<script type="module" src="assets/site.js?v=96c3f70868"></script>
+<link rel="stylesheet" href="assets/style.css?v=97c105e03e">
+<script type="module" src="assets/site.js?v=97c105e03e"></script>
 </head>
 <body>
 <div class="shell">
@@ -22,18 +22,40 @@
 <article>
 <div class="eyebrow">Explore</div>
 <h1>Explore</h1>
-<p class="lede">This page will be a calculator for everything in the library: type an expression, see an exact answer, click an example to change it.</p>
-<p class="notice"><strong>Planned, not built yet.</strong> This site is the frame the package will grow into. The full plan is in the <a href="https://github.com/ratmath/ratmath/blob/main/docs/design/library-roadmap.md#12-a-finance-package-ratmathfinance">library roadmap</a>, and the <a href="https://ratmath.com/shelf/">RatMath Shelf</a> page lists what exists across all the libraries.</p>
-<p>There is nothing to explore yet. The first phase is: <strong>Money and rounding, day counts, time value, annuities</strong>. When it is built its operations appear here.</p>
-<p>In the meantime the code box below runs JavaScript with <code>@ratmath/core</code> in scope.</p>
+<p class="lede">Type a loan and see its schedule, exact to the cent. Type a list of cash flows and see every rate of return it has.</p>
+
+<h2>A loan</h2>
+<div class="demo">
+<div class="demo-row">
+<label>Amount<input id="ex-p" class="text" value="250000" size="10" spellcheck="false"></label>
+<label>Rate a year<input id="ex-r" class="text" value="6%" size="7" spellcheck="false"></label>
+<label>Years<input id="ex-y" class="text" type="number" min="1" max="50" value="30" size="4"></label>
+<label>Extra a month<input id="ex-x" class="text" value="0" size="8" spellcheck="false"></label>
+<label>Rounding<select id="ex-m"><option>half-even</option><option>half-up</option><option>up</option><option>down</option><option value="none">none</option></select></label>
+</div>
+<div id="ex-chart"></div>
+<div id="ex-loan"></div>
+</div>
+<p>Monthly payments at rate ÷ 12. The curve is the balance; the lighter one is the same loan without the extra payment. The table shows the first payments, one a year after that, and the last.</p>
+
+<h2>Rates of return</h2>
+<div class="demo">
+<div class="demo-row">
+<label>Cash flows, one per period<input id="ex-f" class="text" value="-1000, 2300, -1320" size="40" spellcheck="false"></label>
+<label>NPV at<input id="ex-d" class="text" value="15%" size="6" spellcheck="false"></label>
+</div>
+<div id="ex-irr"></div>
+</div>
+<p>Money out is negative. Try <code>-1000, 300, 400, 500, 200</code> (one rate), <code>-1000, 2000, -1500</code> (none) and <code>-100, 230, -132, -10, 15</code>.</p>
 <section class="runbox" aria-label="Runnable code">
   <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>
-  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">// Core's exact numbers are available here.
-const third = new Rational(1, 3);
-PRINT("1/3 + 1/6 =", third.add(new Rational(1, 6)).toString());
-PRINT("(2/3)^10 =", new Rational(2, 3).pow(10).toString());
-PRINT("0.1 + 0.2 in floating point:", 0.1 + 0.2, "  exactly:", new Rational(1, 10).add(new Rational(2, 10)).toString());
-plan[0].contents</textarea>
+  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">// The page above, as code.
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+PRINT("payment", format(l.payment), " last", format(l.finalPayment), " interest", format(l.totals.interest));
+const r = irr([-1000, 2300, -1320]);
+PRINT(r.note);
+PRINT("NPV at 15%:", show(npv("15%", [-1000, 2300, -1320]), 4));
+r.rates.map((x) =&gt; x.text)</textarea>
   <div class="runbox-bar"><button type="button" data-run>Run</button><button type="button" class="ghost" data-reset>Reset</button><span class="runbox-meta">Ctrl/⌘ + Enter runs</span></div>
   <div class="runbox-out" aria-live="polite"></div>
 </section>
@@ -41,5 +63,71 @@ plan[0].contents</textarea>
 </article>
 </main>
 </div>
+<script type="module">
+import { A as F, h } from "./assets/site.js?v=97c105e03e";
+const $ = (id) => document.getElementById(id);
+const fail = (out, e) => out.replaceChildren(h("div", { class: "out err" }, e.message));
+const svg = (tag, attrs, ...kids) => {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  el.append(...kids);
+  return el;
+};
+const money = (x) => F.format(x);
+function loanPanel() {
+  const out = $("ex-loan");
+  const chart = $("ex-chart");
+  try {
+    const years = Math.max(1, Math.min(50, Number($("ex-y").value) || 30));
+    const mode = $("ex-m").value;
+    const spec = { principal: $("ex-p").value, rate: $("ex-r").value, periods: years * 12, rounding: mode === "none" ? false : { places: 2, mode } };
+    const extra = F.amount($("ex-x").value.trim() || "0");
+    const base = F.loan(spec);
+    const l = extra.numerator > 0n ? F.loan({ ...spec, extra }) : base;
+    const [W, H] = [520, 180];
+    const top = base.principal.toNumber();
+    const path = (x) => [`0,${H - 8}`.replace(`${H - 8}`, "8"), ...x.schedule.map((r) => `${((r.period / base.periods) * W).toFixed(1)},${(8 + (1 - r.balance.toNumber() / top) * (H - 16)).toFixed(1)}`)].join(" ");
+    const kids = [svg("line", { x1: 0, y1: H - 8, x2: W, y2: H - 8, stroke: "currentColor", "stroke-opacity": "0.3" })];
+    if (l !== base) kids.push(svg("polyline", { points: path(base), fill: "none", stroke: "currentColor", "stroke-opacity": "0.35", "stroke-width": "1.4" }));
+    kids.push(svg("polyline", { points: path(l), fill: "none", stroke: "var(--accent, #c2410c)", "stroke-width": "1.8" }));
+    chart.replaceChildren(svg("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": "The loan balance over time", style: "max-width:100%;height:auto;border:1px solid var(--line, #8884);border-radius:8px" }, ...kids));
+    const rows = l.schedule.filter((r) => r.period <= 3 || r.period % 12 === 0 || r.period === l.periods);
+    const cell = (x) => h("td", { style: "text-align:right" }, x);
+    const facts = [
+      `Payment ${money(l.payment)}${l.exactPayment ? ` (exactly ${F.show(l.exactPayment, 6)} before rounding)` : ""}.`,
+      ` ${l.periods} payments, the last ${money(l.finalPayment)}.`,
+      ` Interest ${money(l.totals.interest)}; paid in all ${money(l.totals.payments)}.`,
+      l !== base ? ` The extra ${money(extra)} a month saves ${money(base.totals.interest.subtract(l.totals.interest))} of interest and ${base.periods - l.periods} payments.` : "",
+    ];
+    out.replaceChildren(h("p", {}, ...facts),
+      h("div", { class: "tablewrap" }, h("table", { class: "ref" }, h("tr", {}, ...["period", "payment", "interest", "principal", "extra", "balance"].map((t) => h("th", { style: t === "period" ? "" : "text-align:right" }, t))),
+        ...rows.map((r) => h("tr", {}, h("td", {}, String(r.period)), cell(money(r.payment)), cell(money(r.interest)), cell(money(r.principal)), cell(money(r.extra)), cell(money(r.balance)))))));
+  } catch (e) {
+    chart.replaceChildren();
+    fail(out, e);
+  }
+}
+function irrPanel() {
+  const out = $("ex-irr");
+  try {
+    const flows = $("ex-f").value.split(/[;,]/).map((s) => s.trim()).filter(Boolean).map(F.amount);
+    if (flows.length < 2) throw new Error("give at least two cash flows");
+    if (flows.length > 121) throw new Error("at most 121 cash flows in this panel");
+    const r = F.irr(flows);
+    const at = $("ex-d").value.trim();
+    const value = at ? F.npv(at, flows) : null;
+    out.replaceChildren(
+      h("p", {}, `${r.signChanges} change${r.signChanges === 1 ? "" : "s"} of sign: ${r.note}.`, value ? ` Net present value at ${at}: ${F.show(value, 4)}.` : ""),
+      r.rates.length ? h("div", { class: "tablewrap" }, h("table", { class: "ref" }, h("tr", {}, h("th", {}, "rate"), h("th", {}, "as a percentage"), h("th", {}, "kind")),
+        ...r.rates.map((x) => h("tr", {}, h("td", {}, x.text), h("td", {}, F.format(x.exact ? x.rate : x.rate.low, { percent: true, places: 6 })), h("td", {}, (x.exact ? "exact" : "certified") + (x.multiplicity > 1 ? ", repeated root" : "")))))) : null);
+  } catch (e) {
+    fail(out, e);
+  }
+}
+for (const id of ["ex-p", "ex-r", "ex-y", "ex-x", "ex-m"]) $(id).addEventListener("input", loanPanel);
+for (const id of ["ex-f", "ex-d"]) $(id).addEventListener("input", irrPanel);
+loanPanel();
+irrPanel();
+</script>
 </body>
 </html>

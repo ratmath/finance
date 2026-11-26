@@ -1,6 +1,6 @@
 {
   "name": "@ratmath/finance",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations",
   "type": "module",
   "main": "index.js",
@@ -44,7 +44,9 @@
     "url": "https://github.com/ratmath/finance/issues"
   },
   "dependencies": {
-    "@ratmath/core": "^0.10.0"
+    "@ratmath/core": "^0.10.0",
+    "@ratmath/analytic": "^0.1.0",
+    "@ratmath/algebraic": "^0.1.0"
   },
   "devDependencies": {
     "katex": "0.19.1"
@@ -56,5 +58,9 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "workspaces": [
+    "vendor/analytic",
+    "vendor/algebraic"
+  ]
 }

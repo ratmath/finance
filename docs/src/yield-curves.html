@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yield curves · RatMath Finance</title>
+<meta name="description" content="Discount factors, spot and forward rates from bond prices by bootstrapping, par yields, and immunising a liability.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Spot rates, forward rates and yield curves</h1>
+<p class="lede">One yield per bond hides the fact that money due in one year and money due in ten are discounted at different rates. The curve of those rates can be read off bond prices exactly.</p>
+<pre><code>const curve = bootstrap([
+  { price: "97.5",  coupon: 0,      periods: 1 },
+  { price: "100.2", coupon: "3%",   periods: 2 },
+  { price: "101",   coupon: "3.5%", periods: 3 },
+]);
+curve.discountFactors;   // 39/40, 3891/4120, 194221/213210: exact
+curve.spot(3);           // the 3-period spot rate
+curve.forward(1, 2);     // the rate from period 1 to 2 implied today, exact
+curve.parYield(3);       // the coupon that would price a 3-period bond at par</code></pre>
+<h2>Discount factors</h2>
+<p>\(d_k\) is today's price of 1 paid at the end of period k. A bond is then worth \(\sum_k c_k d_k\), with no single yield involved. If there is a bond maturing at each of periods 1, 2, …, n, the factors can be found one at a time: the one-period bond gives \(d_1\); the two-period bond's price, less its first coupon valued at \(d_1\), gives \(d_2\); and so on. This is <em>bootstrapping</em>. It is only division and subtraction, so the factors are exact fractions.</p>
+
+<h2>Spot and forward rates</h2>
+<p>The spot rate \(s_k\) is the yield of a zero-coupon bond for k periods: \(d_k = (1 + s_k/f)^{-k}\). It needs a k-th root, so beyond one period it is usually an interval.</p>
+<p>The forward rate from a to b is the rate you can lock in today for that future stretch, by buying one zero and selling another: \((1 + f_{a,b}/f)^{b-a} = d_a/d_b\). One-period forwards are exact. An upward-sloping spot curve means forwards above spots.</p>
+<p>The par yield for k periods is the coupon rate at which a bond would be priced at exactly its face value: \((1 - d_k)/\sum_{j\le k} d_j\), exact.</p>
+<p><code>yieldCurve({ spots })</code> or <code>yieldCurve({ discountFactors })</code> makes a curve directly, and <code>curve.price(bond)</code> values any bond off it.</p>
+
+<h2>Immunisation</h2>
+<p>A liability of L due at time T has present value \(L(1+i)^{-fT}\) and duration T. If the assets held against it have the same present value and the same duration, a small change in yield moves both by the same amount. If the assets are also more convex than the liability, any change in yield, up or down, leaves a surplus. <code>immunise</code> takes two bonds, one shorter and one longer than T, and solves for the split: two linear equations with an exact solution. <code>surplusAt(yield)</code> then shows, exactly, what is left if the yield jumps.</p>
+<p>The protection is against one parallel shift of a flat curve, and the match must be renewed as time passes.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>bootstrap(bonds, { frequency })</td><td>YieldCurve</td></tr>
+<tr><td>yieldCurve({ spots | discountFactors, frequency })</td><td>YieldCurve</td></tr>
+<tr><td>curve.discount(k), .discountFactors</td><td>exact</td></tr>
+<tr><td>curve.spot(k), .spots, .forward(a, b), .forwards</td><td>nominal annual rates; exact or intervals</td></tr>
+<tr><td>curve.parYield(k), curve.price(bond)</td><td>exact</td></tr>
+<tr><td>immunise({ liability: { amount, time }, yield, bonds: [a, b] })</td><td>{ presentValue, weights, amounts, units, durations, convexity, immunised, short, surplusAt }</td></tr>
+</table></div>
+<template data-runbox>
+const curve = bootstrap([
+  { price: "97.5", coupon: 0, periods: 1 },
+  { price: "100.2", coupon: "3%", periods: 2 },
+  { price: "101", coupon: "3.5%", periods: 3 },
+  { price: "100.4", coupon: "3.8%", periods: 4 },
+]);
+PRINT("years  discount factor          spot      forward   par yield");
+for (let k = 1; k &lt;= curve.periods; k++)
+  PRINT(String(k).padStart(5), " ", String(curve.discount(k)).padEnd(22), format(curve.spot(k).low ?? curve.spot(k), { percent: true, places: 4 }).padStart(8), format(curve.forward(k - 1, k), { percent: true, places: 4 }).padStart(10), format(curve.parYield(k), { percent: true, places: 4 }).padStart(10));
+PRINT("a 4-year 5% bond off this curve:", show(curve.price({ coupon: "5%", periods: 4 }), 6));
+const im = immunise({ liability: { amount: 1000000, time: 7 }, yield: "5%", bonds: [{ coupon: 0, periods: 3, frequency: 1 }, { coupon: "6%", periods: 15, frequency: 1 }] });
+PRINT("1,000,000 due in 7 years, at 5%: needs", format(im.presentValue), "now;", format(im.weights[0], { percent: true }), "in the 3-year zero and", format(im.weights[1], { percent: true }), "in the 15-year 6% bond");
+PRINT("durations", im.durations.map((x) =&gt; show(x, 3)).join(" and "), "; convexity of assets", show(im.convexity.assets, 2), "against", show(im.convexity.liability, 2));
+for (const y of ["3%", "4%", "5%", "6%", "7%"]) PRINT("  if the yield goes to", y, "the surplus is", format(im.surplusAt(y)));
+im.immunised
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

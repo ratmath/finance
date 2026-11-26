@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scenarios · RatMath Finance</title>
+<meta property="og:title" content="Scenarios · RatMath Finance">
+<meta property="og:description" content="The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ratmath.com/finance/scenarios.html">
+<meta name="description" content="Accounts, flows and changing rates projected exactly period by period; what-if comparison; exact sensitivity to each input.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css?v=97c105e03e">
+<script type="module" src="assets/site.js?v=97c105e03e"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Scenarios</h1>
+<p class="lede">A scenario is a few accounts, the money that moves between them, and the rates they earn or cost. Projecting it is bookkeeping, done exactly. Two scenarios can then be compared to the cent, and the effect of each input measured without guessing a step size.</p>
+<pre><code>const household = scenario({
+  start: "2027-01", periods: 120,
+  accounts: [
+    { name: "bank", balance: 3000 },
+    { name: "savings", balance: 10000, rate: "4%" },
+    { name: "loan", balance: -20000, rate: "7%" },
+  ],
+  flows: [
+    { name: "salary", amount: 4500, to: "bank", growth: "3%" },
+    { name: "living", amount: 3200, from: "bank", growth: "2.5%" },
+    { name: "loan payment", amount: 400, from: "bank", to: "loan", until: "paid", then: "savings" },
+    { name: "car", amount: 9000, from: "savings", at: "2029-06" },
+  ],
+});
+const p = household.project();
+p.rows[11].balances;     // after the first year
+p.netWorth;              // exact
+p.firstNegative;         // the first time an account goes below zero, or null</code></pre>
+<h2>The model</h2>
+<p>Time runs in equal periods (months by default). Each period, in this order:</p>
+<ol>
+<li>every account earns or is charged interest on its opening balance at rate/periodsPerYear. A negative balance is a debt and is charged the same way.</li>
+<li>the flows happen in the order listed. A flow with only <code>to</code> is money arriving from outside, with only <code>from</code> money leaving, with both a transfer.</li>
+</ol>
+<p>A flow can start and end (<code>start</code>, <code>end</code>, as period numbers or months), repeat every so many periods (<code>every</code>), happen once (<code>at</code>), and grow by a rate once a year (<code>growth</code>). <code>until: "paid"</code> stops a payment into a debt when the debt is cleared, and <code>then</code> sends the money somewhere else from that moment, which is how "once the loan is gone, save the payment" is written. An account's rate can change with <code>rateChanges</code>.</p>
+<p>Nothing stops a balance going negative: that is information. <code>firstNegative</code> and <code>minimum</code> report it.</p>
+<p>By default nothing is rounded, so the projection is the exact consequence of the inputs: a savings account with level deposits reproduces the <a href="time-value.html">annuity formula</a> to the last digit. With <code>rounding: 2</code> interest and flows are rounded to the cent each period, as a bank would, and a debt account then reproduces a <a href="loans.html">loan schedule</a>.</p>
+
+<h2>What if</h2>
+<p><code>compare({ a: …, b: … })</code> projects several scenarios and sets them side by side: each one's outcome (final net worth unless you give another <code>measure</code>), its difference from the first, the lowest any account fell, and <code>crossovers</code>, the periods at which one scenario's net worth overtakes another's. Paying a loan down against investing, renting against buying and stopping work at one date against another are all of this shape.</p>
+
+<h2>Which input matters</h2>
+<p>The outcome of an unrounded projection is a rational function of its inputs, built from additions and multiplications. Its derivative with respect to an input can therefore be carried through the same arithmetic step by step (forward-mode differentiation), and the result is the exact derivative, a fraction, not a difference quotient with a step you had to choose.</p>
+<p><code>sensitivity(build, inputs)</code> does this for each input in turn. <code>build</code> is a function from the inputs to a scenario. It reports the derivative, <code>perPercent</code> (the change in the outcome when that input rises by 1% of itself) and the elasticity, sorted so the input that moves the outcome most comes first. Inside <code>build</code>, arithmetic on an input uses <code>.add</code>, <code>.subtract</code>, <code>.multiply</code>, <code>.divide</code>.</p>
+<p>A derivative describes small changes. Where a flow is capped (a debt being paid off in a particular month) the outcome has a kink, and the derivative is the one on the side you are on.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>scenario({ periods, periodsPerYear, start, accounts, flows, rounding })</td><td>Scenario</td></tr>
+<tr><td>.project()</td><td>{ opening, rows: [{ period, date, balances, interest, flows, netWorth }], final, netWorth, minimum, firstNegative, totals }</td></tr>
+<tr><td>compare(scenarios, { measure })</td><td>{ rows: [{ name, outcome, difference, netWorth, lowest, firstNegative }], best, series, crossovers }</td></tr>
+<tr><td>sensitivity(build, inputs, { measure })</td><td>{ base, rows: [{ input, value, derivative, perPercent, elasticity }], most }</td></tr>
+</table></div>
+<section class="runbox" aria-label="Runnable code">
+  <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>
+  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">const make = (toLoan, toSavings) =&gt; ({
+  start: "2027-01", periods: 120,
+  accounts: [{ name: "bank", balance: 3000 }, { name: "savings", balance: 10000, rate: "4%" }, { name: "loan", balance: -20000, rate: "7%" }],
+  flows: [
+    { name: "salary", amount: 4500, to: "bank", growth: "3%" },
+    { name: "living", amount: 3200, from: "bank", growth: "2.5%" },
+    { name: "loan payment", amount: toLoan, from: "bank", to: "loan", until: "paid", then: "savings" },
+    { name: "save", amount: toSavings, from: "bank", to: "savings" },
+    { name: "car", amount: 9000, from: "savings", at: "2029-06" },
+  ],
+});
+const p = scenario(make(400, 500)).project();
+PRINT("month       bank    savings       loan  net worth");
+for (const k of [1, 12, 30, 60, 120]) {
+  const r = p.rows[k - 1];
+  PRINT(r.date, ...["bank", "savings", "loan"].map((a) =&gt; format(r.balances[a], { places: 0 }).padStart(10)), format(r.netWorth, { places: 0 }).padStart(10));
+}
+PRINT("loan cleared in", p.rows.find((r) =&gt; r.balances.loan.numerator === 0n).date, "; interest paid on it", format(p.totals.interest.loan.negate()));
+const c = compare({ "400 to the loan": make(400, 500), "800 to the loan": make(800, 100), "200 to the loan": make(200, 700) });
+for (const r of c.rows) PRINT(r.name.padEnd(16), "final net worth", format(r.netWorth), " difference", format(r.difference));
+const s = sensitivity((x) =&gt; ({ periods: 120, accounts: [{ name: "pot", balance: x.start, rate: x.rate }], flows: [{ amount: x.monthly, to: "pot", growth: x.raise }] }), { start: 10000, rate: "5%", monthly: 500, raise: "2%" });
+PRINT("saving 500 a month for 10 years ends at", format(s.base), "; a 1% change in each input moves that by");
+for (const r of s.rows) PRINT("  ", r.input.padEnd(8), format(r.perPercent).padStart(9), "  (elasticity", show(r.elasticity, 3) + ")");
+c.best</textarea>
+  <div class="runbox-bar"><button type="button" data-run>Run</button><button type="button" class="ghost" data-reset>Reset</button><span class="runbox-meta">Ctrl/⌘ + Enter runs</span></div>
+  <div class="runbox-out" aria-live="polite"></div>
+</section>
+<footer class="sitelinks"><a href="https://github.com/ratmath/finance">GitHub</a> · <a href="https://ratmath.com/">ratmath.com</a> · <a href="https://ratmath.com/shelf/">shelf</a> · <a href="https://ratmath.com/core/">core</a></footer>
+</article>
+</main>
+</div>
+</body>
+</html>

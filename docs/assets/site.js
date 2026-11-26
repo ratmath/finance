@@ -1,8 +1,8 @@
 // Shared page furniture for the finance docs: the contents column, the theme
 // switch and the code boxes. Add each topic page to PAGES as it is written.
 
-import * as A from "./finance.js?v=96c3f70868";
-import { mountRunboxes } from "./runbox.js?v=96c3f70868";
+import * as A from "./finance.js?v=97c105e03e";
+import { mountRunboxes } from "./runbox.js?v=97c105e03e";
 
 export { A };
 
@@ -10,8 +10,17 @@ export const PAGES = [
   { href: "index.html", title: "Overview" },
   { href: "reference.html", title: "Reference" },
   { href: "explore.html", title: "Explore" },
-  // { group: "Topics" },
-  // { href: "topic.html", title: "A topic", blurb: "One line about it" },
+  { group: "Foundations" },
+  { href: "money.html", title: "Money and rounding", blurb: "Exact amounts, named rounding rules, splits that add up" },
+  { href: "dates.html", title: "Dates and day counts", blurb: "Calendar dates and the conventions for a fraction of a year" },
+  { href: "time-value.html", title: "Time value of money", blurb: "Interest, equivalent rates, annuities, solving for what is missing" },
+  { group: "Borrowing and investing" },
+  { href: "loans.html", title: "Loans", blurb: "Schedules to the cent, extra payments, refinancing, revolving credit" },
+  { href: "cash-flows.html", title: "Cash flows", blurb: "Net present value and every internal rate of return" },
+  { href: "bonds.html", title: "Bonds", blurb: "Price, yield, accrued interest, duration and convexity" },
+  { href: "yield-curves.html", title: "Yield curves", blurb: "Spot and forward rates from bond prices; immunisation" },
+  { group: "Simulation" },
+  { href: "scenarios.html", title: "Scenarios", blurb: "Exact projection, what-if comparison and sensitivity" },
 ];
 
 export const h = (tag, attrs = {}, ...kids) => {
