@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loans · RatMath Finance</title>
+<meta property="og:title" content="Loans · RatMath Finance">
+<meta property="og:description" content="The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ratmath.com/finance/loans.html">
+<meta name="description" content="Amortisation schedules that add up to the cent under a stated rounding rule, with extra payments, interest-only periods, balloons and rate changes; refinancing; revolving credit.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://ratmath.com/assets/katex/0.19.1/katex.min.css">
+<link rel="stylesheet" href="assets/style.css?v=97c105e03e">
+<script type="module" src="assets/site.js?v=97c105e03e"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Loans and schedules</h1>
+<p class="lede">A loan's schedule is a table of real payments in whole cents. Each row is rounded by a rule, the rows are consistent with one another, and the last payment is whatever clears the balance.</p>
+<pre><code>const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+l.payment;         // 1498.88
+l.exactPayment;    // 1498.876313…, before rounding
+l.schedule[0];     // { period: 1, rate, payment, interest, principal, extra, balance }
+l.finalPayment;    // 1495.22
+l.totals;          // { payments, interest, principal, extra }
+
+loan({ principal: 250000, rate: "6%", periods: 360, extra: 200 }).periods;   // 267
+refinance({ balance: 200000, rate: "7%", periods: 300 }, { rate: "5.5%", periods: 300 }, { costs: 4000 }).breakEven;   // 22</code></pre>
+<h2>How a schedule is made</h2>
+<p>The level payment that repays a balance B in n periods at rate i per period comes from the annuity formula, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mtext> </mtext><mi>i</mi><mi mathvariant="normal">/</mi><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mo stretchy="false">(</mo><mn>1</mn><mo>+</mo><mi>i</mi><msup><mo stretchy="false">)</mo><mrow><mo>−</mo><mi>n</mi></mrow></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">B\,i/(1 - (1+i)^{-n})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.0502em;">B</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mord">/</span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.0213em;vertical-align:-0.25em;"></span><span class="mord mathnormal">i</span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.7713em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mathnormal mtight">n</span></span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span>. It is almost never a whole number of cents, so it is rounded, and that is where a spreadsheet and a bank begin to differ. Then for each period: interest is the balance times the rate, rounded; the rest of the payment reduces the balance. Because the payment was rounded, the balance after n − 1 payments is not quite what one more level payment would clear, so the last payment is the balance plus its interest. Here that payment is shown (<code>finalPayment</code>), and the principal parts add to the amount borrowed exactly.</p>
+<p><code>rate</code> is the nominal annual rate and the rate per period is rate/periodsPerYear, the usual convention. For a rate quoted another way, convert it first with <a href="time-value.html"><code>equivalentRate</code></a>. With <code>rounding: false</code> nothing is rounded and every payment is equal.</p>
+
+<h2>Variations</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>option</th><th>effect</th></tr>
+<tr><td>extra</td><td>more principal each period: an amount, { period: amount }, or (period, balance) ⇒ amount. The loan ends early.</td></tr>
+<tr><td>interestOnly: k</td><td>the first k payments are interest alone; the payment is then set to repay over what remains</td></tr>
+<tr><td>balloon</td><td>an amount left owing, paid with the last payment</td></tr>
+<tr><td>rateChanges: [{ from, rate }]</td><td>a new rate from a period on; the payment is worked out again for the balance and periods left</td></tr>
+<tr><td>payment</td><td>fix the payment yourself; then <code>periods</code> may be omitted and the loan runs until it is repaid. A payment that does not cover the interest is refused.</td></tr>
+</table></div>
+
+<h2>Comparing and refinancing</h2>
+<p><code>compareLoans(a, b)</code> puts two loans side by side. <code>refinance(current, proposed, { costs, rollIn })</code> answers the usual question: the new loan has a lower payment but costs something to set up, so when do the payments saved add up to the cost (<code>breakEven</code>), and what is saved over the whole life (<code>totalSaved</code>)? A lower payment over a longer term can cost more in total, and the numbers say so.</p>
+<p><code>loanAPR</code> finds the rate a borrower really pays when fees are taken from the amount advanced: the single rate at which the payments are worth the money received.</p>
+
+<h2>Revolving credit</h2>
+<p>A card charges interest on the balance and asks for a payment that is a percentage of it, with a floor. Since the payment shrinks with the balance the debt lasts a long time. <code>revolving</code> runs it out and totals the interest; a fixed payment that does not cover the interest is refused, since the balance would never fall.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>loan({ principal, rate, periods, periodsPerYear = 12, … })</td><td>{ payment, exactPayment, schedule, periods, finalPayment, balloon, totals }</td></tr>
+<tr><td>levelPayment(balance, periodicRate, periods, balloon)</td><td>Rational, unrounded</td></tr>
+<tr><td>compareLoans(a, b)</td><td>{ a, b, difference }</td></tr>
+<tr><td>refinance(current, proposed, { costs, rollIn })</td><td>{ current, proposed, paymentChange, interestSaved, totalSaved, breakEven, worthIt }</td></tr>
+<tr><td>loanAPR({ principal, fees, payment, periods })</td><td>{ periodic, nominal, effective }</td></tr>
+<tr><td>revolving({ balance, rate, payment, purchases })</td><td>{ schedule, periods, totals }</td></tr>
+</table></div>
+<section class="runbox" aria-label="Runnable code">
+  <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>
+  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+PRINT("period   payment   interest  principal     balance");
+for (const k of [1, 2, 3, 180, 359, 360]) {
+  const r = l.schedule[k - 1];
+  PRINT(String(k).padStart(6), format(r.payment).padStart(9), format(r.interest).padStart(10), format(r.principal).padStart(10), format(r.balance).padStart(11));
+}
+PRINT("principal paid in all:", format(l.totals.principal), "  interest:", format(l.totals.interest));
+const x = loan({ principal: 250000, rate: "6%", periods: 360, extra: 200 });
+PRINT("with 200 extra a month: done in", x.periods, "payments, interest", format(x.totals.interest), "— saved", format(l.totals.interest.subtract(x.totals.interest)));
+const r = refinance({ balance: 200000, rate: "7%", periods: 300 }, { rate: "5.5%", periods: 300 }, { costs: 4000 });
+PRINT("refinance 7% → 5.5% for 4,000: payment changes by", format(r.paymentChange), ", breaks even at month", r.breakEven, ", saves", format(r.totalSaved));
+const apr = loanAPR({ principal: 250000, fees: 5000, payment: l.payment, periods: 360 });
+PRINT("6% loan with 5,000 of fees: APR", format(apr.nominal.low, { percent: true, places: 3 }), " effective", format(apr.effective.low, { percent: true, places: 3 }));
+const card = revolving({ balance: 3000, rate: "24%", payment: { percent: "3%", minimum: 25 } });
+`a 3,000 card balance at 24%, paying 3% (at least 25): ${card.periods} months, ${format(card.totals.interest)} interest`</textarea>
+  <div class="runbox-bar"><button type="button" data-run>Run</button><button type="button" class="ghost" data-reset>Reset</button><span class="runbox-meta">Ctrl/⌘ + Enter runs</span></div>
+  <div class="runbox-out" aria-live="polite"></div>
+</section>
+<footer class="sitelinks"><a href="https://github.com/ratmath/finance">GitHub</a> · <a href="https://ratmath.com/">ratmath.com</a> · <a href="https://ratmath.com/shelf/">shelf</a> · <a href="https://ratmath.com/core/">core</a></footer>
+</article>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bonds · RatMath Finance</title>
+<meta name="description" content="Bond prices, yields to maturity, accrued interest, duration and convexity, exactly or with proof.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Bonds</h1>
+<p class="lede">A bond is a schedule of coupons and a repayment. Its price at a yield is a sum, its yield at a price is the root of an equation with exactly one solution, and its sensitivity to yield is its duration.</p>
+<pre><code>const b = bond({ face: 100, coupon: "5%", frequency: 2, periods: 20 });
+b.price("6%");             // { dirty, clean, accrued }: 92.561263…, exact
+b.yield(100);              // 1/20: at par the yield is the coupon, exactly
+b.yield("95.25");          // an interval that contains the yield
+b.duration("6%");          // { macaulay, modified, convexity }, exact
+
+const d = bond({ coupon: "4.5%", settlement: "2027-03-15", maturity: "2032-11-15" });
+d.accrued;                 // 3/2: 120 days of a 180-day period, on 30/360</code></pre>
+<h2>Price</h2>
+<p>With coupon C per period, redemption R, n periods left and yield y a year compounded f times (so \(i = y/f\) per period), on a coupon date</p>
+<p>\[ P = \sum_{k=1}^{n} \frac{C}{(1+i)^k} + \frac{R}{(1+i)^n}. \]</p>
+<p>This is a fraction when y is, and <code>price</code> returns it exactly. When the yield equals the coupon rate the price is the face value; above it the bond sells at a discount, below at a premium.</p>
+
+<h2>Between coupon dates</h2>
+<p>Give <code>settlement</code> and <code>maturity</code> instead of <code>periods</code>. The coupon dates are counted back from maturity, and the fraction w of the current period still to run comes from the <a href="dates.html">day-count convention</a>. The buyer pays the <em>dirty</em> price, every cash flow discounted for its real distance \(w, w+1, \dots\) in periods, which includes the <em>accrued interest</em> the seller has earned since the last coupon, \(C(1-w)\). The quoted <em>clean</em> price is the dirty price less the accrued interest. Accrued interest is exact; the dirty price has the factor \((1+i)^{-w}\) with a fractional exponent, so it is an interval.</p>
+
+<h2>Yield to maturity</h2>
+<p>The yield at which the price formula gives the market price. Every cash flow is positive, so the price falls steadily as the yield rises and there is exactly one solution. On a coupon date it is a root of a polynomial and is returned exactly when rational; otherwise it is bracketed by bisection on exact values and returned as an interval of the width you ask for.</p>
+
+<h2>Duration and convexity</h2>
+<p>Macaulay duration is the average time of the cash flows weighted by their present values,</p>
+<p>\[ D = \frac{1}{P}\sum_k t_k\,\frac{c_k}{(1+i)^{f t_k}}, \]</p>
+<p>and modified duration \(D/(1+i)\) is the percentage fall in price per unit rise in yield: \(\mathrm dP/P \approx -D_{\text{mod}}\,\mathrm dy\). Convexity is the second-order term, \(\tfrac12 C\,(\mathrm dy)^2\), always in the holder's favour. A zero-coupon bond's duration is its life; coupons shorten it. All three are ratios in which the fractional-period factor cancels, so they are exact even between coupon dates.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>member of bond({ face, coupon, frequency, redemption, periods | settlement, maturity, dayCount })</th><th>value</th></tr>
+<tr><td>couponAmount, periods, accrued, accruedDays, first, cashflows</td><td>the schedule; <code>first</code> is the fraction of a period to the next coupon</td></tr>
+<tr><td>price(yield, { digits })</td><td>{ dirty, clean, accrued }</td></tr>
+<tr><td>yield(cleanPrice, { digits })</td><td>Rational, or an interval</td></tr>
+<tr><td>duration(yield)</td><td>{ macaulay, modified, convexity, percentPerPoint }</td></tr>
+</table></div>
+<template data-runbox>
+const b = bond({ coupon: "5%", periods: 20 });
+for (const y of ["4%", "5%", "6%"]) PRINT("price at", y, "yield:", show(b.price(y).clean, 6));
+PRINT("yield at a price of 100:", String(b.yield(100)), "(exact)   at 95.25:", show(b.yield("95.25", { digits: 14 }), 10));
+const d = b.duration("6%");
+PRINT("at 6%: Macaulay", show(d.macaulay, 4), "years, modified", show(d.modified, 4), ", convexity", show(d.convexity, 3));
+// duration predicts the effect of a change in yield; convexity corrects it
+const [p0, p1] = [b.price("6%").clean, b.price("7%").clean];
+const dy = amount("1%");
+const first = d.modified.negate().multiply(dy);
+const second = first.add(d.convexity.multiply(dy).multiply(dy).divide(amount(2)));
+PRINT("yield 6% → 7%: price really changes", format(p1.subtract(p0).divide(p0), { percent: true, places: 4 }), "; duration says", format(first, { percent: true, places: 4 }), "; with convexity", format(second, { percent: true, places: 4 }));
+const m = bond({ coupon: "4.5%", settlement: "2027-03-15", maturity: "2032-11-15" });
+const q = m.price("5%");
+PRINT("settling 2027-03-15:", m.periods, "coupons left,", m.accruedDays, "days accrued =", String(m.accrued), "; dirty", show(q.dirty, 4), "clean", show(q.clean, 4));
+show(m.yield("97.5"), 8)
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

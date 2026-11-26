@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Money and rounding · RatMath Finance</title>
+<meta property="og:title" content="Money and rounding · RatMath Finance">
+<meta property="og:description" content="The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios and building blocks for simulating financial situations.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ratmath.com/finance/money.html">
+<meta name="description" content="Exact amounts, named rounding rules, allocation that adds up, and formatting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://ratmath.com/assets/katex/0.19.1/katex.min.css">
+<link rel="stylesheet" href="assets/style.css?v=97c105e03e">
+<script type="module" src="assets/site.js?v=97c105e03e"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Money and rounding</h1>
+<p class="lede">Amounts are exact fractions. Rounding is a decision, so it has a name and happens where you put it.</p>
+<pre><code>amount("$1,234.56");                    // 30864/25
+amount("4.5%");                         // 9/200
+round("2.345");                         // 117/50 = 2.34
+round("2.345", { mode: "half-up" });    // 47/20 = 2.35
+format("1234567.891");                  // "1,234,567.89"
+allocate(100, [1, 1, 1]);               // 33.34, 33.33, 33.33</code></pre>
+<h2>Why not floating point</h2>
+<p>One tenth has no finite binary expansion, so <code>0.1</code> in a double is 0.1000000000000000055…; ten of them do not make 1, and a column of such numbers need not add to its total. The error is tiny each time but it is not zero, and rounding to the cent at the end can then go the wrong way. With rationals <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi mathvariant="normal">/</mi><mn>10</mn><mo>+</mo><mn>2</mn><mi mathvariant="normal">/</mi><mn>10</mn><mo>=</mo><mn>3</mn><mi mathvariant="normal">/</mi><mn>10</mn></mrow><annotation encoding="application/x-tex">1/10 + 2/10 = 3/10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1/10</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">2/10</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">3/10</span></span></span></span> and nothing else is possible.</p>
+
+<h2>Rounding rules</h2>
+<p>When an exact amount such as 1498.876313… must become a payable one, a rule is needed for the half-way cases and for the direction:</p>
+<div class="tablewrap"><table class="ref">
+<tr><th>mode</th><th>2.345</th><th>2.355</th><th>−2.345</th><th>meaning</th></tr>
+<tr><td>half-even</td><td>2.34</td><td>2.36</td><td>−2.34</td><td>ties go to the even digit (banker's rounding); the default, since ties then cancel on average</td></tr>
+<tr><td>half-up</td><td>2.35</td><td>2.36</td><td>−2.35</td><td>ties go away from zero (the commercial rule)</td></tr>
+<tr><td>half-down</td><td>2.34</td><td>2.35</td><td>−2.34</td><td>ties go towards zero</td></tr>
+<tr><td>up / down</td><td>2.35 / 2.34</td><td>2.36 / 2.35</td><td>−2.35 / −2.34</td><td>always away from / towards zero</td></tr>
+<tr><td>floor / ceil</td><td>2.34 / 2.35</td><td>2.35 / 2.36</td><td>−2.35 / −2.34</td><td>always towards −∞ / +∞</td></tr>
+</table></div>
+<p><code>places</code> may be negative: <code>round(1250, { places: -2 })</code> is 1200 under half-even. Functions that produce schedules take a <code>rounding</code> option: <code>{ places, mode }</code>, a number of places, or <code>false</code> for none.</p>
+
+<h2>Splitting without losing a cent</h2>
+<p>A third of 100.00 is 33.33⅓. Rounding each share gives 99.99 or 100.01. <code>allocate</code> rounds every share down and hands out the cents left over to the shares that lost most (the largest-remainder method), so the parts always add to the total.</p>
+
+<h2>Showing numbers</h2>
+<p><code>format(x, { places, mode, currency, separator, percent })</code> writes an amount for people. <code>show(x, places)</code> is the plain version used throughout these pages, and it also accepts an interval: if both ends round to the same decimal, that decimal is the correctly rounded answer and is printed; if a rounding boundary lies inside the interval, both ends are printed, and asking for more <code>digits</code> from the function that made it will settle the matter.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>amount(x), rate(x)</td><td>Rational</td></tr>
+<tr><td>round(x, { places = 2, mode = "half-even" })</td><td>Rational</td></tr>
+<tr><td>format(x, options), show(x, places)</td><td>string</td></tr>
+<tr><td>allocate(total, weights, { places })</td><td>Rational[] that add to the total</td></tr>
+<tr><td>power(base, exponent, digits)</td><td>Rational when exact, else RationalInterval</td></tr>
+</table></div>
+<section class="runbox" aria-label="Runnable code">
+  <div class="runbox-head"><strong>Try it</strong><span>Edit the code and run it with <code>@ratmath/finance</code> and Core's <code>Rational</code> in scope. The last line's value is shown; <code>PRINT(…)</code> adds lines, <code>TEX(…)</code> typesets math.</span></div>
+  <textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code">PRINT("0.1 + 0.2 in doubles:", 0.1 + 0.2, "  exactly:", String(amount("0.1").add(amount("0.2"))));
+let f = 0, q = amount(0);
+for (let k = 0; k &lt; 1000; k++) { f += 0.01; q = q.add(amount("0.01")); }
+PRINT("a cent added 1000 times: doubles", f, "  exact", String(q));
+for (const mode of ["half-even", "half-up", "half-down", "up", "down", "floor", "ceil"])
+  PRINT(mode.padEnd(10), ["2.345", "2.355", "-2.345"].map((x) =&gt; show(round(x, { mode }), 2).padStart(6)).join(" "));
+PRINT("100 in thirds:", allocate(100, [1, 1, 1]).map((x) =&gt; show(x, 2)).join(" + "));
+PRINT("a bill of 47.11 split 50/30/20:", allocate("47.11", [50, 30, 20]).map((x) =&gt; show(x, 2)).join(" + "));
+PRINT("1.21^(1/2) =", String(power("1.21", "1/2")), "(exact)   2^(1/2) =", show(power(2, "1/2", 30), 28), "(certified)");
+format("1234567.891", { currency: "$" })</textarea>
+  <div class="runbox-bar"><button type="button" data-run>Run</button><button type="button" class="ghost" data-reset>Reset</button><span class="runbox-meta">Ctrl/⌘ + Enter runs</span></div>
+  <div class="runbox-out" aria-live="polite"></div>
+</section>
+<footer class="sitelinks"><a href="https://github.com/ratmath/finance">GitHub</a> · <a href="https://ratmath.com/">ratmath.com</a> · <a href="https://ratmath.com/shelf/">shelf</a> · <a href="https://ratmath.com/core/">core</a></footer>
+</article>
+</main>
+</div>
+</body>
+</html>

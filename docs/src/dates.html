@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dates and day counts · RatMath Finance</title>
+<meta name="description" content="Calendar dates without time zones, and the day-count conventions that turn two dates into a fraction of a year.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Dates and day counts</h1>
+<p class="lede">Interest accrues over time, and how much time lies between two dates is a convention. The same loan can cost a different amount under each.</p>
+<pre><code>date("2027-01-31").addMonths(1);                       // 2027-02-28
+daysBetween("2027-01-01", "2027-07-01");               // 181
+dayCount("2027-01-31", "2027-03-31", "30/360");        // { days: 60, yearFraction: 1/6 }
+dayCount("2027-12-01", "2028-03-01", "actual/actual"); // { days: 91, yearFraction: 31/365 + 60/366 }</code></pre>
+<h2>Dates</h2>
+<p>A <code>CalendarDate</code> is a year, a month and a day in the Gregorian calendar, with no time of day and no time zone, so it cannot shift by a day when a program runs somewhere else. Write one as <code>"2027-03-15"</code>. <code>addMonths</code> keeps the day of the month where it can and otherwise uses the last day of the month; with <code>{ endOfMonth: true }</code> a month-end stays a month-end (28 February goes to 31 March), which is the usual rule for coupon dates.</p>
+
+<h2>Conventions</h2>
+<div class="tablewrap"><table class="ref">
+<tr><th>name</th><th>days counted</th><th>year</th><th>typical use</th></tr>
+<tr><td>30/360</td><td>every month has 30 days (the US rule for the 31st)</td><td>360</td><td>corporate and municipal bonds, many mortgages</td></tr>
+<tr><td>30E/360</td><td>every month has 30 days (any 31st becomes a 30th)</td><td>360</td><td>Eurobonds</td></tr>
+<tr><td>actual/360</td><td>the real number</td><td>360</td><td>money markets</td></tr>
+<tr><td>actual/365</td><td>the real number</td><td>365</td><td>some loans and markets</td></tr>
+<tr><td>actual/actual</td><td>the real number</td><td>365 or 366 for the days in each year</td><td>government bonds</td></tr>
+</table></div>
+<p>Under actual/360 a full year of 365 days counts as \(365/360\) of a year, so a rate quoted that way costs about 1.4% more than its face. The year fraction is an exact fraction in every case.</p>
+<p>Dated cash flows use these: <a href="cash-flows.html"><code>xnpv</code> and <code>xirr</code></a> measure time from the first date, and a <a href="bonds.html">bond</a> with a settlement date uses its convention for accrued interest.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>date(x)</td><td>CalendarDate: year, month, day, addDays(n), addMonths(n, { endOfMonth }), compareTo, equals, isEndOfMonth</td></tr>
+<tr><td>daysBetween(a, b)</td><td>number</td></tr>
+<tr><td>dayCount(from, to, convention)</td><td>{ days, yearFraction }</td></tr>
+<tr><td>DAY_COUNTS, isLeap(year)</td><td>the names; true or false</td></tr>
+</table></div>
+<template data-runbox>
+const [a, b] = ["2027-11-15", "2028-05-15"];
+for (const c of DAY_COUNTS) {
+  const r = dayCount(a, b, c);
+  PRINT(c.padEnd(14), String(r.days).padStart(4), "days ", String(r.yearFraction).padEnd(12), " interest on 100,000 at 6%:", format(amount(100000).multiply(amount("6%")).multiply(r.yearFraction)));
+}
+PRINT("a month after 31 January:", String(date("2027-01-31").addMonths(1)), "  and in a leap year:", String(date("2028-01-31").addMonths(1)));
+PRINT("coupon dates back from 2030-08-31:", [0, 6, 12, 18].map((m) =&gt; String(date("2030-08-31").addMonths(-m, { endOfMonth: true }))).join(", "));
+daysBetween("2000-01-01", "2027-01-01")
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

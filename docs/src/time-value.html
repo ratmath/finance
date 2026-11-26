@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Time value of money · RatMath Finance</title>
+<meta name="description" content="Simple, compound and continuous interest, equivalent rates, present and future value, annuities and perpetuities, and solving for the missing quantity.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>The time value of money</h1>
+<p class="lede">Money now is worth more than the same money later, by the interest it could earn in between. Everything else in finance is built on moving amounts along the time line at a rate.</p>
+<pre><code>compound(1000, "5%", 10);                                // 1000·1.05¹⁰, exact
+compound(1000, "5%", 10, { periodsPerYear: "continuous" });  // 1000·e^0.5, an interval
+effectiveRate("12%", 12);                                // 1.01¹² − 1, exact
+annuity({ payment: 100, rate: "5%", periods: 10 }).presentValue;
+tvm({ pv: 200000, fv: 0, rate: "0.5%", n: 360 }).pmt;    // −1199.10…, exact
+tvm({ pv: -1000, fv: 2000, pmt: 0, rate: "7%" }).n;      // how long to double: an interval</code></pre>
+<h2>Interest</h2>
+<p>Simple interest on a principal P at rate r for time t is \(Prt\). Compound interest adds the interest to the principal each period, so after n periods at rate i per period the amount is \(P(1+i)^n\). A nominal annual rate j compounded m times a year means \(i = j/m\) per period, and letting m grow without bound gives continuous compounding, \(Pe^{jt}\).</p>
+<p>With a whole number of periods \((1+i)^n\) is a fraction and <code>compound</code> returns it exactly. With a fractional number of periods, or continuously, the value is irrational and comes back as an interval that contains it.</p>
+
+<h2>Equivalent rates</h2>
+<p>Rates that give the same growth over a year are equivalent. The effective annual rate of j compounded m times is \((1 + j/m)^m - 1\); 12% compounded monthly is 12.6825…% effective. Going the other way needs an m-th root, so <code>nominalRate</code> is exact only when the root is (21% effective is exactly 20% compounded twice a year, since \(1.21 = 1.1^2\)). <code>equivalentRate(j, from, to)</code> restates a rate at another compounding frequency, and <code>realRate(nominal, inflation)</code> is Fisher's \((1+n)/(1+\pi) - 1\), not the approximation \(n - \pi\).</p>
+
+<h2>Annuities</h2>
+<p>A level payment P at the end of each of n periods has present value</p>
+<p>\[ P\,a_{\overline{n}|i} = P\,\frac{1 - (1+i)^{-n}}{i}, \]</p>
+<p>the sum of a geometric series. Paid at the start of each period (an annuity due) it is worth \((1+i)\) times as much. If each payment is \((1+g)\) times the last the ratio of the series changes to \((1+g)/(1+i)\), and when \(g = i\) every payment has the same present value. A perpetuity, with no last payment, is worth \(P/(i - g)\), provided \(i > g\). <code>annuity</code> handles all of these and a deferral, exactly.</p>
+
+<h2>Solving for what is missing</h2>
+<p><code>tvm</code> is the equation behind a financial calculator's five keys,</p>
+<p>\[ PV + PMT\cdot a_{\overline{n}|i} + FV\,(1+i)^{-n} = 0, \]</p>
+<p>with money received positive and money paid negative. Leave one out. PV, FV and PMT are solved exactly. The number of periods is a logarithm, returned as an interval (or exactly when it is whole) with <code>whole</code>, the number of periods actually needed. The rate is a root of a polynomial of degree n; every root above −100% is found and proven, and when it is a rational number, as a typed-in rate always is, it is returned as that fraction.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>simpleInterest(P, r, t)</td><td>{ interest, total }</td></tr>
+<tr><td>compound(P, rate, years, { periodsPerYear })</td><td>exact, or an interval</td></tr>
+<tr><td>effectiveRate, nominalRate, equivalentRate, realRate</td><td>exact, or an interval</td></tr>
+<tr><td>presentValue(fv, rate, n), futureValue(pv, rate, n), discountFactor(rate, n)</td><td>exact for whole n</td></tr>
+<tr><td>annuity({ payment, rate, periods, due, growth, deferred })</td><td>{ presentValue, futureValue, total, payments }</td></tr>
+<tr><td>perpetuity({ payment, rate, growth, due, deferred })</td><td>Rational</td></tr>
+<tr><td>tvm({ pv, fv, pmt, rate, n, due })</td><td>the missing one: { pv } , { fv }, { pmt }, { n, whole, exact } or { rates, rate, count }</td></tr>
+</table></div>
+<template data-runbox>
+PRINT("1000 at 5% for 10 years, compounded");
+for (const m of [1, 2, 12, 365, "continuous"]) PRINT("  ", String(m).padEnd(10), show(compound(1000, "5%", 10, { periodsPerYear: m }), 6));
+PRINT("12% compounded monthly is", show(effectiveRate("12%", 12), 8), "effective; 21% effective is", String(nominalRate("21%", 2)), "compounded twice a year, exactly");
+const a = annuity({ payment: 100, rate: "5%", periods: 10 });
+PRINT("100 a year for 10 years at 5%: worth", show(a.presentValue, 4), "now,", show(a.futureValue, 4), "at the end");
+PRINT("  the same growing 5% a year:", show(annuity({ payment: 100, rate: "5%", periods: 10, growth: "5%" }).presentValue, 4), "  for ever, growing 2%:", show(perpetuity({ payment: 100, rate: "5%", growth: "2%" }), 4));
+const pmt = tvm({ pv: 200000, fv: 0, rate: "0.5%", n: 360 }).pmt;
+PRINT("payment on 200,000 over 360 months at 0.5% a month:", show(pmt, 6));
+PRINT("and the rate recovered from that payment:", tvm({ pv: 200000, fv: 0, pmt, n: 360 }).rates.map((r) =&gt; r.text + (r.exact ? " (exact)" : "")).join(", "));
+const d = tvm({ pv: -1000, fv: 2000, pmt: 0, rate: "7%" });
+`doubling at 7% takes ${show(d.n, 6)} years: ${d.whole} whole ones`
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>

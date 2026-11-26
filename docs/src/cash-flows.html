@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cash flows · RatMath Finance</title>
+<meta name="description" content="Net present value, every internal rate of return with proof of how many there are, the modified rate, payback, inflation, depreciation and bracketed taxes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/site.js"></script>
+</head>
+<body>
+<div class="shell">
+<aside></aside>
+<main>
+<article>
+<div class="eyebrow">Topic</div>
+<h1>Cash flows and rates of return</h1>
+<p class="lede">A project is a list of amounts at times. Its net present value at a rate is one number. Its internal rate of return is the solution of an equation, and equations can have several solutions or none.</p>
+<pre><code>npv("10%", [-1000, 300, 400, 500, 200]);      // exact
+irr([-1000, 300, 400, 500, 200]).rate;         // an interval around 15.32%
+irr([-1000, 2300, -1320]).rates;               // two: exactly 10% and 20%
+irr([-1000, 2000, -1500]).count;               // 0: no rate works, proven
+xirr([{ date: "2027-01-01", amount: -10000 }, { date: "2028-03-15", amount: 11500 }]).rate;
+mirr([-1000, 300, 400, 500, 200], "8%", "6%"); // one answer, by assumption</code></pre>
+<h2>Net present value</h2>
+<p>\[ \mathrm{NPV}(r) = \sum_t \frac{a_t}{(1+r)^t}. \]</p>
+<p>Money out is negative and money in positive. <code>npv</code> takes amounts at times 0, 1, 2, … and is exact; given <code>{ t, amount }</code> with fractional times, or dates through <code>xnpv</code>, the powers are irrational and the answer is an interval.</p>
+
+<h2>Internal rates of return</h2>
+<p>A rate r with NPV(r) = 0. Multiplying through by \((1+r)^n\) gives a polynomial of degree n in \(x = 1 + r\), and a polynomial of degree n can have up to n positive roots. Descartes' rule of signs bounds the number by the number of changes of sign in the flows: an investment followed only by returns has one change and exactly one rate, which is the textbook case. A project that ends with a cost (a mine that must be cleaned up, a lease with a final payment) has two changes, and may have two rates or none.</p>
+<p>A spreadsheet's IRR starts from a guess and reports wherever Newton's method lands. Here the real roots are isolated by exact methods from <code>@ratmath/algebraic</code>, so the count is a theorem: <code>rates</code> lists every one, each exact when rational and otherwise in an interval that contains exactly one root; <code>rate</code> is set only when there is a single one; and <code>note</code> says in words what was found. A repeated root is reported with its multiplicity.</p>
+<p>When there are several, none is "the" return. Use the net present value at your cost of capital, or the modified rate.</p>
+
+<h2>The modified rate</h2>
+<p><code>mirr(flows, financeRate, reinvestRate)</code> discounts the money out at one rate, compounds the money in at another to the end, and reports the single rate that turns the first into the second over n periods: \((\mathrm{FV_{in}} / -\mathrm{PV_{out}})^{1/n} - 1\). It always exists and is unique, at the price of two assumptions that you state.</p>
+
+<h2>Payback, inflation, depreciation, taxes</h2>
+<p><code>payback</code> gives the first period at which the running total is no longer negative, and the same with the last period split in proportion; with a <code>rate</code> the flows are discounted first. <code>realValue</code> and <code>nominalValue</code> move an amount across inflation.</p>
+<p><code>depreciation</code> produces the schedule for straight-line, declining-balance (optionally switching to straight-line), sum-of-years-digits and units-of-production. The last period takes whatever is left, so the total written off is exactly cost minus salvage even after rounding.</p>
+<p><code>taxSchedule(brackets)</code> turns a list of <code>{ upTo, rate }</code> into a piecewise-linear function: <code>.on(income)</code> gives the tax, the marginal and average rates and the part from each bracket. No jurisdiction's table is included; the brackets are yours.</p>
+
+<div class="tablewrap"><table class="ref">
+<tr><th>call</th><th>returns</th></tr>
+<tr><td>npv(rate, flows), xnpv(rate, datedFlows, { dayCount })</td><td>exact, or an interval</td></tr>
+<tr><td>irr(flows)</td><td>{ rates: [{ rate, exact, text, multiplicity }], count, signChanges, rate, note }</td></tr>
+<tr><td>xirr(datedFlows, { dayCount, range })</td><td>the same, rates as intervals</td></tr>
+<tr><td>mirr(flows, financeRate, reinvestRate)</td><td>exact, or an interval</td></tr>
+<tr><td>payback(flows, { rate })</td><td>{ period, fractional, cumulative }</td></tr>
+<tr><td>realValue, nominalValue (amount, inflation, periods)</td><td>exact for whole periods</td></tr>
+<tr><td>depreciation({ cost, salvage, life, method, … })</td><td>[{ period, depreciation, accumulated, bookValue }]</td></tr>
+<tr><td>taxSchedule(brackets).on(income)</td><td>{ tax, marginalRate, averageRate, parts, afterTax }</td></tr>
+</table></div>
+<template data-runbox>
+const flows = [-1000, 300, 400, 500, 200];
+PRINT("NPV at 10%:", show(npv("10%", flows), 6), "  at 0%:", String(npv(0, flows)));
+const one = irr(flows);
+PRINT("IRR:", one.rates[0].text, "—", one.note, "  check: NPV there is in", show(npv(one.rate.low, flows), 9), "to", show(npv(one.rate.high, flows), 9));
+for (const f of [[-1000, 2300, -1320], [-1000, 2000, -1500], [-4, 12, -9], [-100, 230, -132, -10, 15]]) {
+  const r = irr(f);
+  PRINT(JSON.stringify(f).padEnd(28), "sign changes", r.signChanges, " rates:", r.rates.map((x) =&gt; x.text + (x.multiplicity &gt; 1 ? " (double)" : "")).join(", ") || "none");
+}
+PRINT("modified rate (finance 8%, reinvest 6%):", show(mirr(flows, "8%", "6%"), 6), "  payback after", String(payback(flows).fractional), "periods");
+const x = xirr([{ date: "2027-01-01", amount: -10000 }, { date: "2027-03-15", amount: 2750 }, { date: "2027-10-30", amount: 4250 }, { date: "2028-02-15", amount: 3250 }, { date: "2028-04-01", amount: 2750 }]);
+PRINT("dated flows:", x.rates[0].text, "a year —", x.note);
+PRINT("declining balance on 10,000 (salvage 1,000, 5 years):", depreciation({ cost: 10000, salvage: 1000, life: 5, method: "declining-balance" }).map((r) =&gt; String(r.depreciation)).join(", "));
+const t = taxSchedule([{ upTo: 10000, rate: "10%" }, { upTo: 40000, rate: "20%" }, { rate: "30%" }]).on(55000);
+`made-up brackets on 55,000: tax ${t.tax}, marginal ${format(t.marginalRate, { percent: true, places: 0 })}, average ${format(t.averageRate, { percent: true })}`
+</template>
+</article>
+</main>
+</div>
+</body>
+</html>
