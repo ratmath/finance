@@ -529,7 +529,7 @@ export function strategy(legs: Leg[]): {
   maxProfit: Rational | null;
   maxLoss: Rational | null;
 };
-export function parity(spec: { call?: Amount; put?: Amount; spot?: Amount; strike?: Amount; rate: Amount; time: Amount; compounding?: "continuous" | "annual"; bits?: number }): {
+export function parity(spec: { call?: Amount | RationalInterval; put?: Amount | RationalInterval; spot?: Amount | RationalInterval; strike?: Amount; rate: Amount; time: Amount; compounding?: "continuous" | "annual"; bits?: number }): {
   call?: Certified; put?: Certified; spot?: Certified; strike?: Certified; gap?: Certified; holds?: boolean | null;
 };
 export function binomialTree(spec: {

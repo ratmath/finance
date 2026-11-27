@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `parity` takes enclosed prices: the call (or put) that `blackScholes`
+  returns goes straight in, and the missing price comes back enclosed. It used
+  to refuse with "cannot read … as an exact amount". Found by the Course Test
+  (ratmath/shelf#7).
 - `@ratmath/core` is now a peer dependency (`>=0.10.0 <0.12.0`): the package
   uses the program's own copy of Core instead of bringing its own, so Core 0.11
   works and there is never a second copy whose `Rational` is not the same class.

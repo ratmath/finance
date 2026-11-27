@@ -13,8 +13,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="https://ratmath.com/assets/katex/0.19.1/katex.min.css">
-<link rel="stylesheet" href="assets/style.css?v=a31feff937">
-<script type="module" src="assets/site.js?v=a31feff937"></script>
+<link rel="stylesheet" href="assets/style.css?v=35a3138947">
+<script type="module" src="assets/site.js?v=35a3138947"></script>
 </head>
 <body>
 <div class="shell">
@@ -109,7 +109,7 @@ M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">�
 <div class="tablewrap"><table class="ref">
 <tr><th>call</th><th>returns</th></tr>
 <tr><td>strategy(legs)</td><td>{ payoff(S), profit(S), cost, kinks, breakEvens, maxProfit, maxLoss }</td></tr>
-<tr><td>parity({ call, put, spot, strike, rate, time, compounding })</td><td>the missing one, or { gap, holds }</td></tr>
+<tr><td>parity({ call, put, spot, strike, rate, time, compounding })</td><td>the missing one, or { gap, holds }; prices may be enclosures, such as <code>blackScholes(…).call</code></td></tr>
 <tr><td>binomialTree({ spot, strike, steps, type, style, up, down, growth } or { volatility, time, rate })</td><td>{ price, probability, delta, earlyExercise, rounded, tree }</td></tr>
 <tr><td>blackScholes({ spot, strike, rate, volatility, time, dividendYield })</td><td>{ call, put, d1, d2, delta, gamma, vega, theta, rho }, all enclosed</td></tr>
 <tr><td>impliedVolatility({ price, type, spot, strike, rate, time, digits })</td><td>an interval containing σ</td></tr>

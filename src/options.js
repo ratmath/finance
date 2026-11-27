@@ -85,7 +85,8 @@ export function parity({ call, put, spot, strike, rate, time, compounding = "con
   const pv = mul(amount(strike ?? 0), df);
   const missing = ["call", "put", "spot", "strike"].filter((k) => ({ call, put, spot, strike })[k] === undefined);
   if (missing.length > 1) refuse("bad-argument", "give at least three of call, put, spot and strike");
-  const [C, P, S] = [call, put, spot].map((x) => (x === undefined ? null : amount(x)));
+  // a price may be an enclosure, such as the call blackScholes returns
+  const [C, P, S] = [call, put, spot].map((x) => (x === undefined ? null : isIv(x) ? tight(x) : amount(x)));
   if (missing[0] === "call") return { call: tight(add(P, sub(S, pv))) };
   if (missing[0] === "put") return { put: tight(sub(C, sub(S, pv))) };
   if (missing[0] === "spot") return { spot: tight(add(sub(C, P), pv)) };
