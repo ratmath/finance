@@ -117,6 +117,13 @@ describe("options", () => {
     const gap = parity({ call: atm.call.low, put: atm.put.high, spot: 100, strike: 100, rate: "5%", time: 1 }).gap;
     expect(Math.abs(gap.low.toNumber())).toBeLessThan(1e-12);
     expect(parity({ put: atm.put.low, spot: 100, strike: 100, rate: "5%", time: 1 }).call.low.toNumber()).toBeCloseTo(10.4506, 4);
+    // the enclosures blackScholes returns go straight in
+    const put = parity({ call: atm.call, spot: 100, strike: 100, rate: "5%", time: 1 }).put;
+    expect(put.low.compareTo(atm.put.high) <= 0 && atm.put.low.compareTo(put.high) <= 0).toBe(true);
+    expect(put.high.subtract(put.low).toNumber()).toBeLessThan(1e-12);
+    const both = parity({ call: atm.call, put: atm.put, spot: 100, strike: 100, rate: "5%", time: 1 });
+    expect(both.gap.containsZero()).toBe(true);
+    expect(both.holds).toBe(null);
     expect(parity({ call: 10, put: 5, spot: 100, strike: 100, rate: "5%", time: 1, compounding: "annual" }).gap.toString()).toBe(q(10).subtract(q(5)).subtract(q(100).subtract(q(100).divide(q("1.05")))).toString());
   });
   test("sensitivities agree with difference quotients of the price", () => {

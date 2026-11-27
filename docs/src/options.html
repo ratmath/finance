@@ -49,7 +49,7 @@ impliedVolatility({ price: "10.45", spot: 100, strike: 100, rate: "5%", time: 1 
 <div class="tablewrap"><table class="ref">
 <tr><th>call</th><th>returns</th></tr>
 <tr><td>strategy(legs)</td><td>{ payoff(S), profit(S), cost, kinks, breakEvens, maxProfit, maxLoss }</td></tr>
-<tr><td>parity({ call, put, spot, strike, rate, time, compounding })</td><td>the missing one, or { gap, holds }</td></tr>
+<tr><td>parity({ call, put, spot, strike, rate, time, compounding })</td><td>the missing one, or { gap, holds }; prices may be enclosures, such as <code>blackScholes(…).call</code></td></tr>
 <tr><td>binomialTree({ spot, strike, steps, type, style, up, down, growth } or { volatility, time, rate })</td><td>{ price, probability, delta, earlyExercise, rounded, tree }</td></tr>
 <tr><td>blackScholes({ spot, strike, rate, volatility, time, dividendYield })</td><td>{ call, put, d1, d2, delta, gamma, vega, theta, rho }, all enclosed</td></tr>
 <tr><td>impliedVolatility({ price, type, spot, strike, rate, time, digits })</td><td>an interval containing σ</td></tr>
