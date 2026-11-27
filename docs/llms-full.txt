@@ -1,0 +1,1231 @@
+# @ratmath/finance 0.2.0: full documentation
+
+> The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios, uncertain inputs and repeated runs, portfolios, options and life contingencies. From https://ratmath.com/finance/, commit ac28657. Each page ends with a runnable example; in it, PRINT(...) prints.
+
+
+---
+
+Page: https://ratmath.com/finance/index.html
+
+@ratmath/finance
+
+## Money that adds up
+
+An amount of money is a fraction with a small denominator, and a computer that stores it as a binary floating-point number gets it slightly wrong from the first step. Here amounts are exact rationals. Rounding happens only where a rule you can name says so; a rate found by solving an equation is proven, and when a cash flow has two rates of return you are told both.
+
+### What is here
+
+### A first program
+
+```js
+import { loan, irr, bond, scenario, compare, round, show } from "@ratmath/finance";
+
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+show(l.payment, 2);            // "1498.88"
+show(l.finalPayment, 2);       // "1495.22": the last payment clears the balance, visibly
+show(l.totals.interest, 2);    // "289593.14", the sum of 360 rows, to the cent
+
+irr([-1000, 2300, -1320]).rates.map((r) => r.text);   // ["1/10", "1/5"]: two rates, both reported
+
+const b = bond({ coupon: "5%", periods: 20 });
+show(b.price("6%").clean, 6);  // "92.561263"
+b.duration("6%").macaulay;     // an exact fraction
+
+round("2.345");                          // 2.34 (half-even, the default)
+round("2.345", { mode: "half-up" });     // 2.35
+```
+
+### Three kinds of answer
+
+Exact. Anything that is arithmetic on amounts and rates over whole periods: payments, schedules, present values, bond prices on coupon dates, durations, discount factors, projections. These are Core `Rational`s.
+
+Certified. Anything that needs a root or an exponential: a yield, a rate of return, continuous compounding, a fractional period. These come back as a `Rational` when the answer happens to be rational (a loan's rate of 1/200 a month is found as exactly that) and otherwise as a `RationalInterval` proven to contain the answer, as narrow as you ask with `digits`.
+
+Simulated. The results of seeded repeated runs ([uncertain inputs](https://ratmath.com/finance/uncertain.html)). Each carries its seed, so it can be repeated exactly, and its own sampling error: a chance of running out comes with an exact interval for the true probability.
+
+Rounded. Only where you say, by a rule with a name: `round(x, { places, mode })`. `show(x, places)` prints either kind; for an interval it prints the correctly rounded value when both ends round to it.
+
+Inputs are whole numbers or strings: `"1234.56"`, `"$1,234.56"`, `"7/8"`, `"4.5%"`. A JavaScript number that is not whole is refused, since `0.1` is not one tenth.
+
+### What it is not
+
+No market data, no tax tables and no advice are built in. You supply the numbers; the library does the arithmetic and tells you how sure it is.
+
+### Still to come
+
+Pictures: balance and amortisation charts, percentile bands, yield curves and option payoffs, in the graphics library. The `plan` export lists the phases, from the [library roadmap](https://github.com/ratmath/ratmath/blob/main/docs/design/library-roadmap.md#12-a-finance-package-ratmathfinance), and the [RatMath Shelf](https://ratmath.com/shelf/) page lists what exists across all the libraries.
+
+### Try it
+
+```js
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+PRINT("payment", show(l.payment, 2), " exactly", show(l.exactPayment, 8), "before rounding");
+PRINT("last payment", show(l.finalPayment, 2), " total interest", format(l.totals.interest));
+PRINT("in floating point, 0.1 + 0.2 =", 0.1 + 0.2, "; here:", String(amount("0.1").add(amount("0.2"))));
+const two = irr([-1000, 2300, -1320]);
+PRINT("rates of return of −1000, +2300, −1320:", two.rates.map((r) => r.text).join(" and "), "—", two.note);
+const b = bond({ coupon: "5%", periods: 20 });
+PRINT("bond at a 6% yield:", show(b.price("6%").clean, 6), " duration", show(b.duration("6%").macaulay, 4), "years");
+plan.map((p) => `${p.phase}. ${p.contents}`)
+```
+
+---
+
+Page: https://ratmath.com/finance/reference.html
+
+Reference
+
+## Everything in the library
+
+Every export of `@ratmath/finance`, with what it takes and what it returns. Amounts and rates go in as whole numbers, Core `Rational`s or strings (`"1234.56"`, `"7/8"`, `"4.5%"`); a JavaScript number that is not whole is refused. Results are `Rational`s when exact and `RationalInterval`s, proven to contain the value, when a root or an exponential is involved; functions that return intervals take `digits`.
+
+### Money, rounding, dates
+
+| Export | What it does |
+
+| amount(x), rate(x) | Read an exact amount or rate. |
+
+| round(x, { places = 2, mode = "half-even" }) | Round by a named rule: half-even, half-up, half-down, up, down, floor, ceil. See Money and rounding. |
+
+| format(x, { places, mode, currency, separator, percent }) | An amount as text, rounded for display. |
+
+| show(x, places) | A Rational or an interval as a decimal; an interval prints as one number when its rounding is certain. |
+
+| allocate(total, weights, { places }) | Shares that add up to the total exactly. |
+
+| power(base, exponent, digits), exp(x, digits), ln(x, digits) | Exact when possible, otherwise enclosed. |
+
+| date(x), CalendarDate | A calendar date: addDays, addMonths, compareTo, equals. See Dates and day counts. |
+
+| daysBetween(a, b), dayCount(from, to, convention), DAY_COUNTS, isLeap(y) | Days, and { days, yearFraction } under a convention. |
+
+| FinanceError | What the library throws, with a code: inexact, bad-number, bad-rounding, bad-date, no-solution, negative-amortisation, never-repaid, bad-flows, bad-bond, bad-curve, bad-scenario and others. |
+
+### Time value
+
+| Export | What it does |
+
+| simpleInterest(P, rate, time) | { interest, total }. |
+
+| compound(P, rate, years, { periodsPerYear }) | Growth at a nominal rate; periodsPerYear may be "continuous". |
+
+| effectiveRate(nominal, m), nominalRate(effective, m), equivalentRate(nominal, from, to) | Rates with the same annual growth. |
+
+| realRate(nominal, inflation) | Fisher's relation, exactly. |
+
+| presentValue(fv, rate, n), futureValue(pv, rate, n), discountFactor(rate, n) | One amount moved through n periods. |
+
+| annuity({ payment, rate, periods, due, growth, deferred }) | { presentValue, futureValue, total, payments }. |
+
+| perpetuity({ payment, rate, growth, due, deferred }) | Present value. |
+
+| tvm({ pv, fv, pmt, rate, n, due }) | Solves for the one left out. See Time value of money. |
+
+| rateRoots(coefficients, { digits }) | Every rate r > −1 with Σ ck(1 + r)k = 0, proven: the solver behind tvm, irr and yields. |
+
+### Loans and cash flows
+
+| Export | What it does |
+
+| loan({ principal, rate, periods, periodsPerYear, payment, rounding, extra, interestOnly, balloon, rateChanges }) | A schedule: { payment, exactPayment, schedule, periods, finalPayment, balloon, totals }. See Loans. |
+
+| levelPayment(balance, periodicRate, periods, balloon) | The unrounded level payment. |
+
+| compareLoans(a, b), refinance(current, proposed, { costs, rollIn }) | Side by side; break-even and savings. |
+
+| loanAPR({ principal, fees, payment, periods, periodsPerYear }) | { periodic, nominal, effective }. |
+
+| revolving({ balance, rate, payment, purchases, rounding }) | A card balance run out. |
+
+| npv(rate, flows), xnpv(rate, datedFlows, { dayCount }) | Net present value. |
+
+| irr(flows), xirr(datedFlows, { dayCount, range }) | Every internal rate of return. See Cash flows. |
+
+| mirr(flows, financeRate, reinvestRate), payback(flows, { rate }) | The modified rate; payback period. |
+
+| realValue(nominal, inflation, n), nominalValue(real, inflation, n) | Across inflation. |
+
+| depreciation({ cost, salvage, life, method, factor, switchToStraightLine, units, rounding }), DEPRECIATION | A schedule by one of four methods. |
+
+| taxSchedule(brackets, { rounding }) | { on(income), brackets } from brackets you supply. |
+
+### Bonds and curves
+
+| Export | What it does |
+
+| bond({ face, coupon, frequency, redemption, periods \| settlement, maturity, dayCount }), Bond | price(yield), yield(cleanPrice), duration(yield), cashflows, accrued. See Bonds. |
+
+| bootstrap(bonds, { frequency }) | Exact discount factors from bond prices. |
+
+| yieldCurve({ spots \| discountFactors, frequency }), YieldCurve | discount(k), spot(k), forward(a, b), parYield(k), price(bond). See Yield curves. |
+
+| immunise({ liability, yield, bonds }) | The split of two bonds that matches a liability's value and duration. |
+
+### Scenarios
+
+| Export | What it does |
+
+| scenario({ periods, periodsPerYear, start, accounts, flows, rounding }), Scenario | .project() gives the table of balances. See Scenarios. |
+
+| compare(scenarios, { measure }) | Outcomes side by side, differences and crossovers. |
+
+| sensitivity(build, inputs, { measure }) | The exact derivative of the outcome in each input, ranked. |
+
+| Dual | A value with its derivative, as passed to build: add, subtract, multiply, divide, pow. |
+
+| plan | The phases still to come, each { phase, contents, estimate }. |
+
+### Uncertain inputs
+
+| Export | What it does |
+
+| processes.fixed, independent, choice, sequence, resample, gbm, walk, meanReverting; Process | Paths of growth factors from a seeded stream. See Uncertain inputs. |
+
+| simulate(spec, { returns, inflation, indexed, events, runs, seed, … }), Simulation | Many seeded runs: outcomes, mean, standardError, percentiles, quantile, ruin (exact interval), bands, real. |
+
+| sequenceRisk(spec, { account, returns, shuffles }) | The same returns in different orders; orderMatters and spread. |
+
+### Portfolios, options, life contingencies
+
+| Export | What it does |
+
+| portfolio({ means, covariance } or { returns }), Portfolio | expectedReturn, variance, risk, minimumVariance, frontier, frontierLongOnly, tangency. See Portfolios. |
+
+| capm, returnsFrom, solveExact | Beta, alpha and required return; returns from prices; an exact linear solve. |
+
+| strategy(legs), parity(…) | Payoffs and exact break-even prices; put–call parity. See Options. |
+
+| binomialTree(…) | Exact European and American prices on a binomial tree; float: true for a preview. |
+
+| blackScholes(…), impliedVolatility(…), normalCdf, normalPdf | Certified values and sensitivities; σ by certified bisection. |
+
+| lifeTable, deMoivre, LifeTable | Life tables from l or q. See Life contingencies. |
+
+| lifeAnnuity, lifeInsurance, pureEndowment, endowment, netPremium, reserve | Exact present values, premiums and reserves. |
+
+### Try it
+
+```js
+// One line from each part.
+PRINT("round:", show(round("1498.876313"), 2), "  allocate:", allocate(10, [1, 2, 3], { places: 2 }).map((x) => show(x, 2)).join(" "));
+PRINT("day count:", String(dayCount("2027-01-15", "2027-07-15", "actual/365").yearFraction));
+PRINT("annuity:", show(annuity({ payment: 500, rate: "0.4%", periods: 240 }).futureValue, 2));
+PRINT("loan:", show(loan({ principal: 18000, rate: "7.5%", periods: 60 }).payment, 2));
+PRINT("irr:", irr([-5000, 1500, 1500, 1500, 1500]).rates[0].text);
+PRINT("bond yield:", show(bond({ coupon: "3%", periods: 10 }).yield("96"), 6));
+PRINT("forward:", String(yieldCurve({ spots: ["2%", "3%"] }).forward(1, 2)));
+PRINT("scenario:", show(scenario({ periods: 12, accounts: [{ name: "a", balance: 100, rate: "12%" }] }).project().netWorth, 4));
+plan.map((p) => p.phase)
+```
+
+---
+
+Page: https://ratmath.com/finance/explore.html
+
+Explore
+
+## Explore
+
+Type a loan and see its schedule, exact to the cent. Type a list of cash flows and see every rate of return it has.
+
+### A loan
+
+Amount
+Rate a year
+Years
+Extra a month
+Rounding
+
+Monthly payments at rate ÷ 12. The curve is the balance; the lighter one is the same loan without the extra payment. The table shows the first payments, one a year after that, and the last.
+
+### Rates of return
+
+Cash flows, one per period
+NPV at
+
+Money out is negative. Try `-1000, 300, 400, 500, 200` (one rate), `-1000, 2000, -1500` (none) and `-100, 230, -132, -10, 15`.
+
+### Try it
+
+```js
+// The page above, as code.
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+PRINT("payment", format(l.payment), " last", format(l.finalPayment), " interest", format(l.totals.interest));
+const r = irr([-1000, 2300, -1320]);
+PRINT(r.note);
+PRINT("NPV at 15%:", show(npv("15%", [-1000, 2300, -1320]), 4));
+r.rates.map((x) => x.text)
+```
+
+---
+
+Page: https://ratmath.com/finance/money.html
+
+Topic
+
+## Money and rounding
+
+Amounts are exact fractions. Rounding is a decision, so it has a name and happens where you put it.
+
+```js
+amount("$1,234.56");                    // 30864/25
+amount("4.5%");                         // 9/200
+round("2.345");                         // 117/50 = 2.34
+round("2.345", { mode: "half-up" });    // 47/20 = 2.35
+format("1234567.891");                  // "1,234,567.89"
+allocate(100, [1, 1, 1]);               // 33.34, 33.33, 33.33
+```
+
+### Why not floating point
+
+One tenth has no finite binary expansion, so `0.1` in a double is 0.1000000000000000055…; ten of them do not make 1, and a column of such numbers need not add to its total. The error is tiny each time but it is not zero, and rounding to the cent at the end can then go the wrong way. With rationals 1/10+2/10=3/10 and nothing else is possible.
+
+### Rounding rules
+
+When an exact amount such as 1498.876313… must become a payable one, a rule is needed for the half-way cases and for the direction:
+
+| mode | 2.345 | 2.355 | −2.345 | meaning |
+
+| half-even | 2.34 | 2.36 | −2.34 | ties go to the even digit (banker's rounding); the default, since ties then cancel on average |
+
+| half-up | 2.35 | 2.36 | −2.35 | ties go away from zero (the commercial rule) |
+
+| half-down | 2.34 | 2.35 | −2.34 | ties go towards zero |
+
+| up / down | 2.35 / 2.34 | 2.36 / 2.35 | −2.35 / −2.34 | always away from / towards zero |
+
+| floor / ceil | 2.34 / 2.35 | 2.35 / 2.36 | −2.35 / −2.34 | always towards −∞ / +∞ |
+
+`places` may be negative: `round(1250, { places: -2 })` is 1200 under half-even. Functions that produce schedules take a `rounding` option: `{ places, mode }`, a number of places, or `false` for none.
+
+### Splitting without losing a cent
+
+A third of 100.00 is 33.33⅓. Rounding each share gives 99.99 or 100.01. `allocate` rounds every share down and hands out the cents left over to the shares that lost most (the largest-remainder method), so the parts always add to the total.
+
+### Showing numbers
+
+`format(x, { places, mode, currency, separator, percent })` writes an amount for people. `show(x, places)` is the plain version used throughout these pages, and it also accepts an interval: if both ends round to the same decimal, that decimal is the correctly rounded answer and is printed; if a rounding boundary lies inside the interval, both ends are printed, and asking for more `digits` from the function that made it will settle the matter.
+
+| call | returns |
+
+| amount(x), rate(x) | Rational |
+
+| round(x, { places = 2, mode = "half-even" }) | Rational |
+
+| format(x, options), show(x, places) | string |
+
+| allocate(total, weights, { places }) | Rational[] that add to the total |
+
+| power(base, exponent, digits) | Rational when exact, else RationalInterval |
+
+### Try it
+
+```js
+PRINT("0.1 + 0.2 in doubles:", 0.1 + 0.2, "  exactly:", String(amount("0.1").add(amount("0.2"))));
+let f = 0, q = amount(0);
+for (let k = 0; k < 1000; k++) { f += 0.01; q = q.add(amount("0.01")); }
+PRINT("a cent added 1000 times: doubles", f, "  exact", String(q));
+for (const mode of ["half-even", "half-up", "half-down", "up", "down", "floor", "ceil"])
+  PRINT(mode.padEnd(10), ["2.345", "2.355", "-2.345"].map((x) => show(round(x, { mode }), 2).padStart(6)).join(" "));
+PRINT("100 in thirds:", allocate(100, [1, 1, 1]).map((x) => show(x, 2)).join(" + "));
+PRINT("a bill of 47.11 split 50/30/20:", allocate("47.11", [50, 30, 20]).map((x) => show(x, 2)).join(" + "));
+PRINT("1.21^(1/2) =", String(power("1.21", "1/2")), "(exact)   2^(1/2) =", show(power(2, "1/2", 30), 28), "(certified)");
+format("1234567.891", { currency: "$" })
+```
+
+---
+
+Page: https://ratmath.com/finance/dates.html
+
+Topic
+
+## Dates and day counts
+
+Interest accrues over time, and how much time lies between two dates is a convention. The same loan can cost a different amount under each.
+
+```js
+date("2027-01-31").addMonths(1);                       // 2027-02-28
+daysBetween("2027-01-01", "2027-07-01");               // 181
+dayCount("2027-01-31", "2027-03-31", "30/360");        // { days: 60, yearFraction: 1/6 }
+dayCount("2027-12-01", "2028-03-01", "actual/actual"); // { days: 91, yearFraction: 31/365 + 60/366 }
+```
+
+### Dates
+
+A `CalendarDate` is a year, a month and a day in the Gregorian calendar, with no time of day and no time zone, so it cannot shift by a day when a program runs somewhere else. Write one as `"2027-03-15"`. `addMonths` keeps the day of the month where it can and otherwise uses the last day of the month; with `{ endOfMonth: true }` a month-end stays a month-end (28 February goes to 31 March), which is the usual rule for coupon dates.
+
+### Conventions
+
+| name | days counted | year | typical use |
+
+| 30/360 | every month has 30 days (the US rule for the 31st) | 360 | corporate and municipal bonds, many mortgages |
+
+| 30E/360 | every month has 30 days (any 31st becomes a 30th) | 360 | Eurobonds |
+
+| actual/360 | the real number | 360 | money markets |
+
+| actual/365 | the real number | 365 | some loans and markets |
+
+| actual/actual | the real number | 365 or 366 for the days in each year | government bonds |
+
+Under actual/360 a full year of 365 days counts as 365/360 of a year, so a rate quoted that way costs about 1.4% more than its face. The year fraction is an exact fraction in every case.
+
+Dated cash flows use these: [`xnpv` and `xirr`](https://ratmath.com/finance/cash-flows.html) measure time from the first date, and a [bond](https://ratmath.com/finance/bonds.html) with a settlement date uses its convention for accrued interest.
+
+| call | returns |
+
+| date(x) | CalendarDate: year, month, day, addDays(n), addMonths(n, { endOfMonth }), compareTo, equals, isEndOfMonth |
+
+| daysBetween(a, b) | number |
+
+| dayCount(from, to, convention) | { days, yearFraction } |
+
+| DAY_COUNTS, isLeap(year) | the names; true or false |
+
+### Try it
+
+```js
+const [a, b] = ["2027-11-15", "2028-05-15"];
+for (const c of DAY_COUNTS) {
+  const r = dayCount(a, b, c);
+  PRINT(c.padEnd(14), String(r.days).padStart(4), "days ", String(r.yearFraction).padEnd(12), " interest on 100,000 at 6%:", format(amount(100000).multiply(amount("6%")).multiply(r.yearFraction)));
+}
+PRINT("a month after 31 January:", String(date("2027-01-31").addMonths(1)), "  and in a leap year:", String(date("2028-01-31").addMonths(1)));
+PRINT("coupon dates back from 2030-08-31:", [0, 6, 12, 18].map((m) => String(date("2030-08-31").addMonths(-m, { endOfMonth: true }))).join(", "));
+daysBetween("2000-01-01", "2027-01-01")
+```
+
+---
+
+Page: https://ratmath.com/finance/time-value.html
+
+Topic
+
+## The time value of money
+
+Money now is worth more than the same money later, by the interest it could earn in between. Everything else in finance is built on moving amounts along the time line at a rate.
+
+```js
+compound(1000, "5%", 10);                                // 1000·1.05¹⁰, exact
+compound(1000, "5%", 10, { periodsPerYear: "continuous" });  // 1000·e^0.5, an interval
+effectiveRate("12%", 12);                                // 1.01¹² − 1, exact
+annuity({ payment: 100, rate: "5%", periods: 10 }).presentValue;
+tvm({ pv: 200000, fv: 0, rate: "0.5%", n: 360 }).pmt;    // −1199.10…, exact
+tvm({ pv: -1000, fv: 2000, pmt: 0, rate: "7%" }).n;      // how long to double: an interval
+```
+
+### Interest
+
+Simple interest on a principal P at rate r for time t is Prt. Compound interest adds the interest to the principal each period, so after n periods at rate i per period the amount is P(1+i)n. A nominal annual rate j compounded m times a year means i=j/m per period, and letting m grow without bound gives continuous compounding, Pejt.
+
+With a whole number of periods (1+i)n is a fraction and `compound` returns it exactly. With a fractional number of periods, or continuously, the value is irrational and comes back as an interval that contains it.
+
+### Equivalent rates
+
+Rates that give the same growth over a year are equivalent. The effective annual rate of j compounded m times is (1+j/m)m−1; 12% compounded monthly is 12.6825…% effective. Going the other way needs an m-th root, so `nominalRate` is exact only when the root is (21% effective is exactly 20% compounded twice a year, since 1.21=1.12). `equivalentRate(j, from, to)` restates a rate at another compounding frequency, and `realRate(nominal, inflation)` is Fisher's (1+n)/(1+π)−1, not the approximation n−π.
+
+### Annuities
+
+A level payment P at the end of each of n periods has present value
+
+Pan∣i​=Pi1−(1+i)−n​,
+
+the sum of a geometric series. Paid at the start of each period (an annuity due) it is worth (1+i) times as much. If each payment is (1+g) times the last the ratio of the series changes to (1+g)/(1+i), and when g=i every payment has the same present value. A perpetuity, with no last payment, is worth P/(i−g), provided i>g. `annuity` handles all of these and a deferral, exactly.
+
+### Solving for what is missing
+
+`tvm` is the equation behind a financial calculator's five keys,
+
+PV+PMT⋅an∣i​+FV(1+i)−n=0,
+
+with money received positive and money paid negative. Leave one out. PV, FV and PMT are solved exactly. The number of periods is a logarithm, returned as an interval (or exactly when it is whole) with `whole`, the number of periods actually needed. The rate is a root of a polynomial of degree n; every root above −100% is found and proven, and when it is a rational number, as a typed-in rate always is, it is returned as that fraction.
+
+| call | returns |
+
+| simpleInterest(P, r, t) | { interest, total } |
+
+| compound(P, rate, years, { periodsPerYear }) | exact, or an interval |
+
+| effectiveRate, nominalRate, equivalentRate, realRate | exact, or an interval |
+
+| presentValue(fv, rate, n), futureValue(pv, rate, n), discountFactor(rate, n) | exact for whole n |
+
+| annuity({ payment, rate, periods, due, growth, deferred }) | { presentValue, futureValue, total, payments } |
+
+| perpetuity({ payment, rate, growth, due, deferred }) | Rational |
+
+| tvm({ pv, fv, pmt, rate, n, due }) | the missing one: { pv } , { fv }, { pmt }, { n, whole, exact } or { rates, rate, count } |
+
+### Try it
+
+```js
+PRINT("1000 at 5% for 10 years, compounded");
+for (const m of [1, 2, 12, 365, "continuous"]) PRINT("  ", String(m).padEnd(10), show(compound(1000, "5%", 10, { periodsPerYear: m }), 6));
+PRINT("12% compounded monthly is", show(effectiveRate("12%", 12), 8), "effective; 21% effective is", String(nominalRate("21%", 2)), "compounded twice a year, exactly");
+const a = annuity({ payment: 100, rate: "5%", periods: 10 });
+PRINT("100 a year for 10 years at 5%: worth", show(a.presentValue, 4), "now,", show(a.futureValue, 4), "at the end");
+PRINT("  the same growing 5% a year:", show(annuity({ payment: 100, rate: "5%", periods: 10, growth: "5%" }).presentValue, 4), "  for ever, growing 2%:", show(perpetuity({ payment: 100, rate: "5%", growth: "2%" }), 4));
+const pmt = tvm({ pv: 200000, fv: 0, rate: "0.5%", n: 360 }).pmt;
+PRINT("payment on 200,000 over 360 months at 0.5% a month:", show(pmt, 6));
+PRINT("and the rate recovered from that payment:", tvm({ pv: 200000, fv: 0, pmt, n: 360 }).rates.map((r) => r.text + (r.exact ? " (exact)" : "")).join(", "));
+const d = tvm({ pv: -1000, fv: 2000, pmt: 0, rate: "7%" });
+`doubling at 7% takes ${show(d.n, 6)} years: ${d.whole} whole ones`
+```
+
+---
+
+Page: https://ratmath.com/finance/loans.html
+
+Topic
+
+## Loans and schedules
+
+A loan's schedule is a table of real payments in whole cents. Each row is rounded by a rule, the rows are consistent with one another, and the last payment is whatever clears the balance.
+
+```js
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+l.payment;         // 1498.88
+l.exactPayment;    // 1498.876313…, before rounding
+l.schedule[0];     // { period: 1, rate, payment, interest, principal, extra, balance }
+l.finalPayment;    // 1495.22
+l.totals;          // { payments, interest, principal, extra }
+
+loan({ principal: 250000, rate: "6%", periods: 360, extra: 200 }).periods;   // 267
+refinance({ balance: 200000, rate: "7%", periods: 300 }, { rate: "5.5%", periods: 300 }, { costs: 4000 }).breakEven;   // 22
+```
+
+### How a schedule is made
+
+The level payment that repays a balance B in n periods at rate i per period comes from the annuity formula, Bi/(1−(1+i)−n). It is almost never a whole number of cents, so it is rounded, and that is where a spreadsheet and a bank begin to differ. Then for each period: interest is the balance times the rate, rounded; the rest of the payment reduces the balance. Because the payment was rounded, the balance after n − 1 payments is not quite what one more level payment would clear, so the last payment is the balance plus its interest. Here that payment is shown (`finalPayment`), and the principal parts add to the amount borrowed exactly.
+
+`rate` is the nominal annual rate and the rate per period is rate/periodsPerYear, the usual convention. For a rate quoted another way, convert it first with [`equivalentRate`](https://ratmath.com/finance/time-value.html). With `rounding: false` nothing is rounded and every payment is equal.
+
+### Variations
+
+| option | effect |
+
+| extra | more principal each period: an amount, { period: amount }, or (period, balance) ⇒ amount. The loan ends early. |
+
+| interestOnly: k | the first k payments are interest alone; the payment is then set to repay over what remains |
+
+| balloon | an amount left owing, paid with the last payment |
+
+| rateChanges: [{ from, rate }] | a new rate from a period on; the payment is worked out again for the balance and periods left |
+
+| payment | fix the payment yourself; then periods may be omitted and the loan runs until it is repaid. A payment that does not cover the interest is refused. |
+
+### Comparing and refinancing
+
+`compareLoans(a, b)` puts two loans side by side. `refinance(current, proposed, { costs, rollIn })` answers the usual question: the new loan has a lower payment but costs something to set up, so when do the payments saved add up to the cost (`breakEven`), and what is saved over the whole life (`totalSaved`)? A lower payment over a longer term can cost more in total, and the numbers say so.
+
+`loanAPR` finds the rate a borrower really pays when fees are taken from the amount advanced: the single rate at which the payments are worth the money received.
+
+### Revolving credit
+
+A card charges interest on the balance and asks for a payment that is a percentage of it, with a floor. Since the payment shrinks with the balance the debt lasts a long time. `revolving` runs it out and totals the interest; a fixed payment that does not cover the interest is refused, since the balance would never fall.
+
+| call | returns |
+
+| loan({ principal, rate, periods, periodsPerYear = 12, … }) | { payment, exactPayment, schedule, periods, finalPayment, balloon, totals } |
+
+| levelPayment(balance, periodicRate, periods, balloon) | Rational, unrounded |
+
+| compareLoans(a, b) | { a, b, difference } |
+
+| refinance(current, proposed, { costs, rollIn }) | { current, proposed, paymentChange, interestSaved, totalSaved, breakEven, worthIt } |
+
+| loanAPR({ principal, fees, payment, periods }) | { periodic, nominal, effective } |
+
+| revolving({ balance, rate, payment, purchases }) | { schedule, periods, totals } |
+
+### Try it
+
+```js
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+PRINT("period   payment   interest  principal     balance");
+for (const k of [1, 2, 3, 180, 359, 360]) {
+  const r = l.schedule[k - 1];
+  PRINT(String(k).padStart(6), format(r.payment).padStart(9), format(r.interest).padStart(10), format(r.principal).padStart(10), format(r.balance).padStart(11));
+}
+PRINT("principal paid in all:", format(l.totals.principal), "  interest:", format(l.totals.interest));
+const x = loan({ principal: 250000, rate: "6%", periods: 360, extra: 200 });
+PRINT("with 200 extra a month: done in", x.periods, "payments, interest", format(x.totals.interest), "— saved", format(l.totals.interest.subtract(x.totals.interest)));
+const r = refinance({ balance: 200000, rate: "7%", periods: 300 }, { rate: "5.5%", periods: 300 }, { costs: 4000 });
+PRINT("refinance 7% → 5.5% for 4,000: payment changes by", format(r.paymentChange), ", breaks even at month", r.breakEven, ", saves", format(r.totalSaved));
+const apr = loanAPR({ principal: 250000, fees: 5000, payment: l.payment, periods: 360 });
+PRINT("6% loan with 5,000 of fees: APR", format(apr.nominal.low, { percent: true, places: 3 }), " effective", format(apr.effective.low, { percent: true, places: 3 }));
+const card = revolving({ balance: 3000, rate: "24%", payment: { percent: "3%", minimum: 25 } });
+`a 3,000 card balance at 24%, paying 3% (at least 25): ${card.periods} months, ${format(card.totals.interest)} interest`
+```
+
+---
+
+Page: https://ratmath.com/finance/cash-flows.html
+
+Topic
+
+## Cash flows and rates of return
+
+A project is a list of amounts at times. Its net present value at a rate is one number. Its internal rate of return is the solution of an equation, and equations can have several solutions or none.
+
+```js
+npv("10%", [-1000, 300, 400, 500, 200]);      // exact
+irr([-1000, 300, 400, 500, 200]).rate;         // an interval around 15.32%
+irr([-1000, 2300, -1320]).rates;               // two: exactly 10% and 20%
+irr([-1000, 2000, -1500]).count;               // 0: no rate works, proven
+xirr([{ date: "2027-01-01", amount: -10000 }, { date: "2028-03-15", amount: 11500 }]).rate;
+mirr([-1000, 300, 400, 500, 200], "8%", "6%"); // one answer, by assumption
+```
+
+### Net present value
+
+NPV(r)=t∑​(1+r)tat​​.
+
+Money out is negative and money in positive. `npv` takes amounts at times 0, 1, 2, … and is exact; given `{ t, amount }` with fractional times, or dates through `xnpv`, the powers are irrational and the answer is an interval.
+
+### Internal rates of return
+
+A rate r with NPV(r) = 0. Multiplying through by (1+r)n gives a polynomial of degree n in x=1+r, and a polynomial of degree n can have up to n positive roots. Descartes' rule of signs bounds the number by the number of changes of sign in the flows: an investment followed only by returns has one change and exactly one rate, which is the textbook case. A project that ends with a cost (a mine that must be cleaned up, a lease with a final payment) has two changes, and may have two rates or none.
+
+A spreadsheet's IRR starts from a guess and reports wherever Newton's method lands. Here the real roots are isolated by exact methods from `@ratmath/algebraic`, so the count is a theorem: `rates` lists every one, each exact when rational and otherwise in an interval that contains exactly one root; `rate` is set only when there is a single one; and `note` says in words what was found. A repeated root is reported with its multiplicity.
+
+When there are several, none is "the" return. Use the net present value at your cost of capital, or the modified rate.
+
+### The modified rate
+
+`mirr(flows, financeRate, reinvestRate)` discounts the money out at one rate, compounds the money in at another to the end, and reports the single rate that turns the first into the second over n periods: (FVin​/−PVout​)1/n−1. It always exists and is unique, at the price of two assumptions that you state.
+
+### Payback, inflation, depreciation, taxes
+
+`payback` gives the first period at which the running total is no longer negative, and the same with the last period split in proportion; with a `rate` the flows are discounted first. `realValue` and `nominalValue` move an amount across inflation.
+
+`depreciation` produces the schedule for straight-line, declining-balance (optionally switching to straight-line), sum-of-years-digits and units-of-production. The last period takes whatever is left, so the total written off is exactly cost minus salvage even after rounding.
+
+`taxSchedule(brackets)` turns a list of `{ upTo, rate }` into a piecewise-linear function: `.on(income)` gives the tax, the marginal and average rates and the part from each bracket. No jurisdiction's table is included; the brackets are yours.
+
+| call | returns |
+
+| npv(rate, flows), xnpv(rate, datedFlows, { dayCount }) | exact, or an interval |
+
+| irr(flows) | { rates: [{ rate, exact, text, multiplicity }], count, signChanges, rate, note } |
+
+| xirr(datedFlows, { dayCount, range }) | the same, rates as intervals |
+
+| mirr(flows, financeRate, reinvestRate) | exact, or an interval |
+
+| payback(flows, { rate }) | { period, fractional, cumulative } |
+
+| realValue, nominalValue (amount, inflation, periods) | exact for whole periods |
+
+| depreciation({ cost, salvage, life, method, … }) | [{ period, depreciation, accumulated, bookValue }] |
+
+| taxSchedule(brackets).on(income) | { tax, marginalRate, averageRate, parts, afterTax } |
+
+### Try it
+
+```js
+const flows = [-1000, 300, 400, 500, 200];
+PRINT("NPV at 10%:", show(npv("10%", flows), 6), "  at 0%:", String(npv(0, flows)));
+const one = irr(flows);
+PRINT("IRR:", one.rates[0].text, "—", one.note, "  check: NPV there is in", show(npv(one.rate.low, flows), 9), "to", show(npv(one.rate.high, flows), 9));
+for (const f of [[-1000, 2300, -1320], [-1000, 2000, -1500], [-4, 12, -9], [-100, 230, -132, -10, 15]]) {
+  const r = irr(f);
+  PRINT(JSON.stringify(f).padEnd(28), "sign changes", r.signChanges, " rates:", r.rates.map((x) => x.text + (x.multiplicity > 1 ? " (double)" : "")).join(", ") || "none");
+}
+PRINT("modified rate (finance 8%, reinvest 6%):", show(mirr(flows, "8%", "6%"), 6), "  payback after", String(payback(flows).fractional), "periods");
+const x = xirr([{ date: "2027-01-01", amount: -10000 }, { date: "2027-03-15", amount: 2750 }, { date: "2027-10-30", amount: 4250 }, { date: "2028-02-15", amount: 3250 }, { date: "2028-04-01", amount: 2750 }]);
+PRINT("dated flows:", x.rates[0].text, "a year —", x.note);
+PRINT("declining balance on 10,000 (salvage 1,000, 5 years):", depreciation({ cost: 10000, salvage: 1000, life: 5, method: "declining-balance" }).map((r) => String(r.depreciation)).join(", "));
+const t = taxSchedule([{ upTo: 10000, rate: "10%" }, { upTo: 40000, rate: "20%" }, { rate: "30%" }]).on(55000);
+`made-up brackets on 55,000: tax ${t.tax}, marginal ${format(t.marginalRate, { percent: true, places: 0 })}, average ${format(t.averageRate, { percent: true })}`
+```
+
+---
+
+Page: https://ratmath.com/finance/bonds.html
+
+Topic
+
+## Bonds
+
+A bond is a schedule of coupons and a repayment. Its price at a yield is a sum, its yield at a price is the root of an equation with exactly one solution, and its sensitivity to yield is its duration.
+
+```js
+const b = bond({ face: 100, coupon: "5%", frequency: 2, periods: 20 });
+b.price("6%");             // { dirty, clean, accrued }: 92.561263…, exact
+b.yield(100);              // 1/20: at par the yield is the coupon, exactly
+b.yield("95.25");          // an interval that contains the yield
+b.duration("6%");          // { macaulay, modified, convexity }, exact
+
+const d = bond({ coupon: "4.5%", settlement: "2027-03-15", maturity: "2032-11-15" });
+d.accrued;                 // 3/2: 120 days of a 180-day period, on 30/360
+```
+
+### Price
+
+With coupon C per period, redemption R, n periods left and yield y a year compounded f times (so i=y/f per period), on a coupon date
+
+P=k=1∑n​(1+i)kC​+(1+i)nR​.
+
+This is a fraction when y is, and `price` returns it exactly. When the yield equals the coupon rate the price is the face value; above it the bond sells at a discount, below at a premium.
+
+### Between coupon dates
+
+Give `settlement` and `maturity` instead of `periods`. The coupon dates are counted back from maturity, and the fraction w of the current period still to run comes from the [day-count convention](https://ratmath.com/finance/dates.html). The buyer pays the dirty price, every cash flow discounted for its real distance w,w+1,… in periods, which includes the accrued interest the seller has earned since the last coupon, C(1−w). The quoted clean price is the dirty price less the accrued interest. Accrued interest is exact; the dirty price has the factor (1+i)−w with a fractional exponent, so it is an interval.
+
+### Yield to maturity
+
+The yield at which the price formula gives the market price. Every cash flow is positive, so the price falls steadily as the yield rises and there is exactly one solution. On a coupon date it is a root of a polynomial and is returned exactly when rational; otherwise it is bracketed by bisection on exact values and returned as an interval of the width you ask for.
+
+### Duration and convexity
+
+Macaulay duration is the average time of the cash flows weighted by their present values,
+
+D=P1​k∑​tk​(1+i)ftk​ck​​,
+
+and modified duration D/(1+i) is the percentage fall in price per unit rise in yield: dP/P≈−Dmod​dy. Convexity is the second-order term, 21​C(dy)2, always in the holder's favour. A zero-coupon bond's duration is its life; coupons shorten it. All three are ratios in which the fractional-period factor cancels, so they are exact even between coupon dates.
+
+| member of bond({ face, coupon, frequency, redemption, periods \| settlement, maturity, dayCount }) | value |
+
+| couponAmount, periods, accrued, accruedDays, first, cashflows | the schedule; first is the fraction of a period to the next coupon |
+
+| price(yield, { digits }) | { dirty, clean, accrued } |
+
+| yield(cleanPrice, { digits }) | Rational, or an interval |
+
+| duration(yield) | { macaulay, modified, convexity, percentPerPoint } |
+
+### Try it
+
+```js
+const b = bond({ coupon: "5%", periods: 20 });
+for (const y of ["4%", "5%", "6%"]) PRINT("price at", y, "yield:", show(b.price(y).clean, 6));
+PRINT("yield at a price of 100:", String(b.yield(100)), "(exact)   at 95.25:", show(b.yield("95.25", { digits: 14 }), 10));
+const d = b.duration("6%");
+PRINT("at 6%: Macaulay", show(d.macaulay, 4), "years, modified", show(d.modified, 4), ", convexity", show(d.convexity, 3));
+// duration predicts the effect of a change in yield; convexity corrects it
+const [p0, p1] = [b.price("6%").clean, b.price("7%").clean];
+const dy = amount("1%");
+const first = d.modified.negate().multiply(dy);
+const second = first.add(d.convexity.multiply(dy).multiply(dy).divide(amount(2)));
+PRINT("yield 6% → 7%: price really changes", format(p1.subtract(p0).divide(p0), { percent: true, places: 4 }), "; duration says", format(first, { percent: true, places: 4 }), "; with convexity", format(second, { percent: true, places: 4 }));
+const m = bond({ coupon: "4.5%", settlement: "2027-03-15", maturity: "2032-11-15" });
+const q = m.price("5%");
+PRINT("settling 2027-03-15:", m.periods, "coupons left,", m.accruedDays, "days accrued =", String(m.accrued), "; dirty", show(q.dirty, 4), "clean", show(q.clean, 4));
+show(m.yield("97.5"), 8)
+```
+
+---
+
+Page: https://ratmath.com/finance/yield-curves.html
+
+Topic
+
+## Spot rates, forward rates and yield curves
+
+One yield per bond hides the fact that money due in one year and money due in ten are discounted at different rates. The curve of those rates can be read off bond prices exactly.
+
+```js
+const curve = bootstrap([
+  { price: "97.5",  coupon: 0,      periods: 1 },
+  { price: "100.2", coupon: "3%",   periods: 2 },
+  { price: "101",   coupon: "3.5%", periods: 3 },
+]);
+curve.discountFactors;   // 39/40, 3891/4120, 194221/213210: exact
+curve.spot(3);           // the 3-period spot rate
+curve.forward(1, 2);     // the rate from period 1 to 2 implied today, exact
+curve.parYield(3);       // the coupon that would price a 3-period bond at par
+```
+
+### Discount factors
+
+dk​ is today's price of 1 paid at the end of period k. A bond is then worth ∑k​ck​dk​, with no single yield involved. If there is a bond maturing at each of periods 1, 2, …, n, the factors can be found one at a time: the one-period bond gives d1​; the two-period bond's price, less its first coupon valued at d1​, gives d2​; and so on. This is bootstrapping. It is only division and subtraction, so the factors are exact fractions.
+
+### Spot and forward rates
+
+The spot rate sk​ is the yield of a zero-coupon bond for k periods: dk​=(1+sk​/f)−k. It needs a k-th root, so beyond one period it is usually an interval.
+
+The forward rate from a to b is the rate you can lock in today for that future stretch, by buying one zero and selling another: (1+fa,b​/f)b−a=da​/db​. One-period forwards are exact. An upward-sloping spot curve means forwards above spots.
+
+The par yield for k periods is the coupon rate at which a bond would be priced at exactly its face value: (1−dk​)/∑j≤k​dj​, exact.
+
+`yieldCurve({ spots })` or `yieldCurve({ discountFactors })` makes a curve directly, and `curve.price(bond)` values any bond off it.
+
+### Immunisation
+
+A liability of L due at time T has present value L(1+i)−fT and duration T. If the assets held against it have the same present value and the same duration, a small change in yield moves both by the same amount. If the assets are also more convex than the liability, any change in yield, up or down, leaves a surplus. `immunise` takes two bonds, one shorter and one longer than T, and solves for the split: two linear equations with an exact solution. `surplusAt(yield)` then shows, exactly, what is left if the yield jumps.
+
+The protection is against one parallel shift of a flat curve, and the match must be renewed as time passes.
+
+| call | returns |
+
+| bootstrap(bonds, { frequency }) | YieldCurve |
+
+| yieldCurve({ spots \| discountFactors, frequency }) | YieldCurve |
+
+| curve.discount(k), .discountFactors | exact |
+
+| curve.spot(k), .spots, .forward(a, b), .forwards | nominal annual rates; exact or intervals |
+
+| curve.parYield(k), curve.price(bond) | exact |
+
+| immunise({ liability: { amount, time }, yield, bonds: [a, b] }) | { presentValue, weights, amounts, units, durations, convexity, immunised, short, surplusAt } |
+
+### Try it
+
+```js
+const curve = bootstrap([
+  { price: "97.5", coupon: 0, periods: 1 },
+  { price: "100.2", coupon: "3%", periods: 2 },
+  { price: "101", coupon: "3.5%", periods: 3 },
+  { price: "100.4", coupon: "3.8%", periods: 4 },
+]);
+PRINT("years  discount factor          spot      forward   par yield");
+for (let k = 1; k <= curve.periods; k++)
+  PRINT(String(k).padStart(5), " ", String(curve.discount(k)).padEnd(22), format(curve.spot(k).low ?? curve.spot(k), { percent: true, places: 4 }).padStart(8), format(curve.forward(k - 1, k), { percent: true, places: 4 }).padStart(10), format(curve.parYield(k), { percent: true, places: 4 }).padStart(10));
+PRINT("a 4-year 5% bond off this curve:", show(curve.price({ coupon: "5%", periods: 4 }), 6));
+const im = immunise({ liability: { amount: 1000000, time: 7 }, yield: "5%", bonds: [{ coupon: 0, periods: 3, frequency: 1 }, { coupon: "6%", periods: 15, frequency: 1 }] });
+PRINT("1,000,000 due in 7 years, at 5%: needs", format(im.presentValue), "now;", format(im.weights[0], { percent: true }), "in the 3-year zero and", format(im.weights[1], { percent: true }), "in the 15-year 6% bond");
+PRINT("durations", im.durations.map((x) => show(x, 3)).join(" and "), "; convexity of assets", show(im.convexity.assets, 2), "against", show(im.convexity.liability, 2));
+for (const y of ["3%", "4%", "5%", "6%", "7%"]) PRINT("  if the yield goes to", y, "the surplus is", format(im.surplusAt(y)));
+im.immunised
+```
+
+---
+
+Page: https://ratmath.com/finance/scenarios.html
+
+Topic
+
+## Scenarios
+
+A scenario is a few accounts, the money that moves between them, and the rates they earn or cost. Projecting it is bookkeeping, done exactly. Two scenarios can then be compared to the cent, and the effect of each input measured without guessing a step size.
+
+```js
+const household = scenario({
+  start: "2027-01", periods: 120,
+  accounts: [
+    { name: "bank", balance: 3000 },
+    { name: "savings", balance: 10000, rate: "4%" },
+    { name: "loan", balance: -20000, rate: "7%" },
+  ],
+  flows: [
+    { name: "salary", amount: 4500, to: "bank", growth: "3%" },
+    { name: "living", amount: 3200, from: "bank", growth: "2.5%" },
+    { name: "loan payment", amount: 400, from: "bank", to: "loan", until: "paid", then: "savings" },
+    { name: "car", amount: 9000, from: "savings", at: "2029-06" },
+  ],
+});
+const p = household.project();
+p.rows[11].balances;     // after the first year
+p.netWorth;              // exact
+p.firstNegative;         // the first time an account goes below zero, or null
+```
+
+### The model
+
+Time runs in equal periods (months by default). Each period, in this order:
+
+- every account earns or is charged interest on its opening balance at rate/periodsPerYear. A negative balance is a debt and is charged the same way.
+
+- the flows happen in the order listed. A flow with only to is money arriving from outside, with only from money leaving, with both a transfer.
+
+A flow can start and end (`start`, `end`, as period numbers or months), repeat every so many periods (`every`), happen once (`at`), and grow by a rate once a year (`growth`). `until: "paid"` stops a payment into a debt when the debt is cleared, and `then` sends the money somewhere else from that moment, which is how "once the loan is gone, save the payment" is written. An account's rate can change with `rateChanges`.
+
+Nothing stops a balance going negative: that is information. `firstNegative` and `minimum` report it.
+
+By default nothing is rounded, so the projection is the exact consequence of the inputs: a savings account with level deposits reproduces the [annuity formula](https://ratmath.com/finance/time-value.html) to the last digit. With `rounding: 2` interest and flows are rounded to the cent each period, as a bank would, and a debt account then reproduces a [loan schedule](https://ratmath.com/finance/loans.html).
+
+### What if
+
+`compare({ a: …, b: … })` projects several scenarios and sets them side by side: each one's outcome (final net worth unless you give another `measure`), its difference from the first, the lowest any account fell, and `crossovers`, the periods at which one scenario's net worth overtakes another's. Paying a loan down against investing, renting against buying and stopping work at one date against another are all of this shape.
+
+### Which input matters
+
+The outcome of an unrounded projection is a rational function of its inputs, built from additions and multiplications. Its derivative with respect to an input can therefore be carried through the same arithmetic step by step (forward-mode differentiation), and the result is the exact derivative, a fraction, not a difference quotient with a step you had to choose.
+
+`sensitivity(build, inputs)` does this for each input in turn. `build` is a function from the inputs to a scenario. It reports the derivative, `perPercent` (the change in the outcome when that input rises by 1% of itself) and the elasticity, sorted so the input that moves the outcome most comes first. Inside `build`, arithmetic on an input uses `.add`, `.subtract`, `.multiply`, `.divide`.
+
+A derivative describes small changes. Where a flow is capped (a debt being paid off in a particular month) the outcome has a kink, and the derivative is the one on the side you are on.
+
+| call | returns |
+
+| scenario({ periods, periodsPerYear, start, accounts, flows, rounding }) | Scenario |
+
+| .project() | { opening, rows: [{ period, date, balances, interest, flows, netWorth }], final, netWorth, minimum, firstNegative, totals } |
+
+| compare(scenarios, { measure }) | { rows: [{ name, outcome, difference, netWorth, lowest, firstNegative }], best, series, crossovers } |
+
+| sensitivity(build, inputs, { measure }) | { base, rows: [{ input, value, derivative, perPercent, elasticity }], most } |
+
+### Try it
+
+```js
+const make = (toLoan, toSavings) => ({
+  start: "2027-01", periods: 120,
+  accounts: [{ name: "bank", balance: 3000 }, { name: "savings", balance: 10000, rate: "4%" }, { name: "loan", balance: -20000, rate: "7%" }],
+  flows: [
+    { name: "salary", amount: 4500, to: "bank", growth: "3%" },
+    { name: "living", amount: 3200, from: "bank", growth: "2.5%" },
+    { name: "loan payment", amount: toLoan, from: "bank", to: "loan", until: "paid", then: "savings" },
+    { name: "save", amount: toSavings, from: "bank", to: "savings" },
+    { name: "car", amount: 9000, from: "savings", at: "2029-06" },
+  ],
+});
+const p = scenario(make(400, 500)).project();
+PRINT("month       bank    savings       loan  net worth");
+for (const k of [1, 12, 30, 60, 120]) {
+  const r = p.rows[k - 1];
+  PRINT(r.date, ...["bank", "savings", "loan"].map((a) => format(r.balances[a], { places: 0 }).padStart(10)), format(r.netWorth, { places: 0 }).padStart(10));
+}
+PRINT("loan cleared in", p.rows.find((r) => r.balances.loan.numerator === 0n).date, "; interest paid on it", format(p.totals.interest.loan.negate()));
+const c = compare({ "400 to the loan": make(400, 500), "800 to the loan": make(800, 100), "200 to the loan": make(200, 700) });
+for (const r of c.rows) PRINT(r.name.padEnd(16), "final net worth", format(r.netWorth), " difference", format(r.difference));
+const s = sensitivity((x) => ({ periods: 120, accounts: [{ name: "pot", balance: x.start, rate: x.rate }], flows: [{ amount: x.monthly, to: "pot", growth: x.raise }] }), { start: 10000, rate: "5%", monthly: 500, raise: "2%" });
+PRINT("saving 500 a month for 10 years ends at", format(s.base), "; a 1% change in each input moves that by");
+for (const r of s.rows) PRINT("  ", r.input.padEnd(8), format(r.perPercent).padStart(9), "  (elasticity", show(r.elasticity, 3) + ")");
+c.best
+```
+
+---
+
+Page: https://ratmath.com/finance/uncertain.html
+
+Topic
+
+## Uncertain inputs and repeated runs
+
+A projection with fixed rates answers "what happens if things go as planned". Markets and prices do not, so a scenario can take its rates from a random process instead, and be run many times from one seed. Each run is still exact bookkeeping; what is uncertain is only the path, and every summary says how many runs it rests on and how far it could be off.
+
+```js
+import { simulate, processes } from "@ratmath/finance";
+import { normal } from "@ratmath/stats";
+
+const retirement = {
+  periods: 360,                              // 30 years, monthly
+  accounts: [{ name: "pot", balance: 600000 }],
+  flows: [{ name: "spending", amount: 2500, from: "pot" }],
+};
+const s = simulate(retirement, {
+  returns: { pot: processes.gbm({ drift: "5%", volatility: "15%" }) },
+  inflation: processes.independent(normal("2.5/100", "1/100")),
+  indexed: ["spending"],                     // spending keeps up with prices
+  events: [{ name: "roof", probability: "4%", amount: 15000, from: "pot" }],
+  runs: 1000, seed: 1,
+});
+s.ruin;              // how often the pot ran out, with an exact 95% interval
+s.percentiles["5"];  // the final balance in a bad case
+s.bands;             // percentiles at every month, for a fan chart
+s.real.median;       // the median outcome in today's money
+```
+
+### Processes
+
+A process turns a seeded random stream into a path: one growth factor per period, 1 plus that period's return or interest. Written into an account (through `returns`), the path replaces the account's fixed rate.
+
+| process | each year or period |
+
+| processes.fixed(rate) | the same annual return every year: a baseline with no uncertainty |
+
+| processes.independent(dist) | an annual return drawn afresh from a distribution, such as normal("7/100", "15/100") from @ratmath/stats |
+
+| processes.choice(values, weights) | an annual return from a short list with exact weights |
+
+| processes.sequence(returns) | the returns given, in order |
+
+| processes.resample(history, { block }) | years drawn from history you supply, in blocks of consecutive years so that runs of good or bad years survive |
+
+| processes.gbm({ drift, volatility }) | geometric Brownian motion: each period multiplies by exp((μ−2σ2​)Δt+σΔt​Z), so a year grows by eμ on average |
+
+| processes.walk({ start, step, min, max }) | an interest rate that moves by a random step once a year |
+
+| processes.meanReverting({ start, mean, speed, volatility, floor }) | a Vasicek rate, r←r+a(θ−r)Δt+σΔt​Z: pulled back towards its mean |
+
+An annual return R spread over m periods becomes the factor (1+R)1/m each period. With yearly periods that is R itself, exactly. Otherwise, and for every draw from a continuous distribution, the factor is a floating-point number that is rounded to 8 decimal places of the per-period rate. From that point on everything is exact, so two runs from the same seed agree to the cent on any machine.
+
+### Inflation and events
+
+`inflation` is a process for the price level. Flows named in `indexed` are multiplied by the price level at the start of their period, and `real` divides each outcome by the final price level, giving it in today's money. A fixed inflation rate reproduces a flow with the same `growth` exactly; the tests check that.
+
+An event is a one-off flow that happens with a stated probability each year (or each period with `per: "period"`), at a random point in that year. It can be limited to the first time with `once`, and its amount can be fixed or drawn from a distribution. A burst pipe, a gap in income, or an inheritance are events.
+
+### Many runs
+
+Run i uses the stream `rng(seed).fork("run i")`, and each input within it has its own fork. So run 7 is the same whether you ask for 10 runs or 10,000, and adding an event does not change the returns. The summaries are simulated answers and say so:
+
+- mean is the exact average of the outcomes, and standardError is s/n​, enclosed.
+
+- ruin is the fraction of runs in which an account that started at or above zero went below it. It is reported with an exact (Clopper–Pearson) interval for the true probability, so 37 of 1000 runs reads as "between 2.6% and 5.1%", not as 3.7%.
+
+- percentiles, quantile(p) and bands use the nearest-rank rule, so each value is one of the outcomes that actually occurred.
+
+Balances are rounded to the cent each period during a simulation, as a bank would round them, unless the scenario names another rule or you pass `rounding: false`. Without rounding, a balance after hundreds of random months is a fraction with thousands of digits.
+
+### Checking the machinery against exact answers
+
+When each year's return is one of two values, three years have eight equally likely paths, and the probability of running out can be found exactly by projecting all eight. A simulation with `processes.choice` must then report an interval that contains that fraction. Its mean must be within a few standard errors of the exact mean of the eight outcomes, and every outcome must be one of the eight. The tests check these, and they also check that geometric Brownian motion's mean growth is eμT within the sampling error.
+
+### The order of good and bad years
+
+With no money going in or out, the order of returns cannot matter, because (1+r1​)(1+r2​)(1+r3​) is the same product in any order. `sequenceRisk` confirms this exactly (`orderMatters: false`). Add withdrawals and the order matters a great deal. A bad year early, while the pot is large, takes more money out than the same bad year late. `sequenceRisk(spec, { account, returns })` applies the same returns in the given order, reversed, best first, worst first and in shuffled orders, and reports the spread.
+
+| call | returns |
+
+| simulate(spec, { returns, inflation, indexed, events, runs, seed, rounding, measure, ruin, level, percentiles, track }) | Simulation: outcomes, sorted, mean, standardError, percentiles, quantile(p), ruin, ruinTimes, bands, real |
+
+| sequenceRisk(spec, { account, returns, shuffles, seed, measure }) | { rows: [{ order, returns, outcome, firstNegative }], best, worst, spread, orderMatters } |
+
+| process.path(seed, periods, periodsPerYear) | the growth factors of one path |
+
+### Try it
+
+```js
+const plan = (spend) => ({ periods: 30, periodsPerYear: 1, accounts: [{ name: "pot", balance: 600000 }], flows: [{ name: "spending", amount: spend, from: "pot" }] });
+for (const spend of [20000, 24000, 30000]) {
+  const s = simulate(plan(spend), {
+    returns: { pot: processes.gbm({ drift: "7%", volatility: "15%" }) },
+    inflation: processes.independent(normal("25/1000", "1/100")), indexed: ["spending"],
+    runs: 400, seed: 1,
+  });
+  PRINT(`spend ${spend} a year: ran out in ${s.ruin.hits} of 400 runs (95% interval ${show(s.ruin.interval.low, 3)} to ${show(s.ruin.interval.high, 3)}); median left ${show(s.percentiles["50"], 0)}, in today's money ${show(s.real.median, 0)}`);
+}
+// the order of the same ten returns, with 40,000 a year taken out
+const returns = ["22%", "-18%", "9%", "14%", "-7%", "11%", "3%", "-25%", "16%", "8%"];
+const r = sequenceRisk({ periods: 10, periodsPerYear: 1, accounts: [{ name: "pot", balance: 400000 }], flows: [{ amount: 40000, from: "pot" }] }, { account: "pot", returns });
+for (const row of r.rows) PRINT(row.order.padEnd(12), show(row.outcome, 2).padStart(12));
+PRINT("does the order matter?", r.orderMatters, "| spread", show(r.spread, 2));
+sequenceRisk({ periods: 10, periodsPerYear: 1, accounts: [{ name: "pot", balance: 400000 }] }, { account: "pot", returns, shuffles: 5 }).orderMatters
+```
+
+---
+
+Page: https://ratmath.com/finance/portfolios.html
+
+Topic
+
+## Portfolios
+
+A portfolio is a list of weights. Its expected return is a weighted sum and its variance a quadratic form, so with rational data both are exact fractions, and so is the whole efficient frontier. Only a standard deviation, a square root, comes back as an interval.
+
+```js
+const p = portfolio({
+  names: ["bonds", "shares", "property"],
+  means: ["4%", "8%", "6%"],
+  covariance: [["1/400", "1/1000", "0"], ["1/1000", "1/25", "1/100"], ["0", "1/100", "1/50"]],
+});
+p.minimumVariance();          // weights, expected return, variance (exact) and risk (enclosed)
+p.frontier("6%");             // the least risk for a 6% expected return, short sales allowed
+p.frontierLongOnly("6%");     // the same with every weight ≥ 0, with a certificate
+p.tangency("2%");             // the best ratio of excess return to risk
+capm({ asset, market, riskFree: "2%" });   // beta, alpha and the required return
+```
+
+### Return and risk
+
+With expected returns μ and covariance matrix Σ, weights w (adding to 1) give expected return w⊤μ and variance w⊤Σw. The data can be given as means and covariances, or as lists of past returns (`returnsFrom(prices)` turns prices into returns), from which the sample means and covariances are computed exactly.
+
+### The efficient frontier
+
+For a target expected return m, the least-variance portfolio with short sales allowed minimises w⊤Σw subject to 1⊤w=1 and μ⊤w=m. Lagrange multipliers give the solution in closed form. With
+
+A=1⊤Σ−11,B=1⊤Σ−1μ,C=μ⊤Σ−1μ,D=AC−B2,
+the weights are w=Σ−1(λ1+γμ) with λ=(C−Bm)/D, γ=(Am−B)/D, and the variance is (Am2−2Bm+C)/D, a parabola in m. Everything here is a fraction when the data are. The minimum-variance portfolio is the vertex, w=Σ−11/A.
+
+### No short sales
+
+Requiring every weight to be at least zero turns the problem into a quadratic program, with no closed form. For a few assets it can still be solved exactly. For each set S of assets that might be held, solve the equality-constrained problem on S, which is a linear system. Keep the solution if its weights are not negative and if, for every asset left out, 2(Σw)j​−λ−γμj​≥0, which means adding a little of that asset would not lower the variance. These are the Karush–Kuhn–Tucker conditions. The problem is convex, so meeting them proves the minimum. The multipliers are returned as the `certificate`. Trying every subset limits this to 12 assets.
+
+### The tangency portfolio and CAPM
+
+With a risk-free rate r, the portfolio with the largest Sharpe ratio (w⊤μ−r)/w⊤Σw​ has weights proportional to Σ−1(μ−r1). Its squared Sharpe ratio is the exact fraction (μ−r1)⊤Σ−1(μ−r1).
+
+The capital asset pricing model says an asset's expected return is r+β(E[Rm​]−r) with β=cov(R,Rm​)/var(Rm​). `capm` computes β from paired returns, the required return, and α, the average return in excess of what the model requires.
+
+| call | returns |
+
+| portfolio({ names, means, covariance } or { returns }) | Portfolio |
+
+| .expectedReturn(w), .variance(w), .risk(w) | exact, exact, enclosed |
+
+| .minimumVariance(), .frontier(m) | { weights, w, expectedReturn, variance, risk } |
+
+| .frontierLongOnly(m) | the same with support and certificate { lambda, gamma } |
+
+| .tangency(r) | the same with sharpeSquared and sharpe |
+
+| capm({ asset, market, riskFree, marketReturn }) | { beta, alpha, required, marketPremium } |
+
+| returnsFrom(prices) | simple returns, exact |
+
+### Try it
+
+```js
+const p = portfolio({
+  names: ["bonds", "shares", "property"],
+  means: ["4%", "8%", "6%"],
+  covariance: [["1/400", "1/1000", "0"], ["1/1000", "1/25", "1/100"], ["0", "1/100", "1/50"]],
+});
+const w = (r) => Object.entries(r.weights).map(([k, v]) => `${k} ${show(v, 3)}`).join(", ");
+const mv = p.minimumVariance();
+PRINT("least risk:", w(mv), "| return", show(mv.expectedReturn, 4), "risk", show(mv.risk, 4));
+PRINT("target   short sales allowed                       risk      long only                              risk");
+for (const m of ["5%", "6%", "7%", "8%"]) {
+  const f = p.frontier(m), g = p.frontierLongOnly(m);
+  PRINT(m.padEnd(8), w(f).padEnd(42), show(f.risk, 4), "   ", w(g).padEnd(38), show(g.risk, 4));
+}
+PRINT("variance at 6%, exactly:", String(p.frontier("6%").variance));
+const t = p.tangency("2%");
+PRINT("tangency at 2%:", w(t), "| Sharpe ratio", show(t.sharpe, 6), "= √(" + t.sharpeSquared + ")");
+capm({ asset: ["12%", "-4%", "9%", "15%", "2%"], market: ["10%", "-2%", "6%", "11%", "1%"], riskFree: "2%" })
+```
+
+---
+
+Page: https://ratmath.com/finance/options.html
+
+Topic
+
+## Options
+
+An option's payoff at expiry is a piecewise-linear function of the price, so strategies and their break-even prices are exact. A binomial tree with rational factors gives an exact price. The Black–Scholes formula involves logarithms, square roots and the normal distribution; its values come back as intervals proven to contain them.
+
+```js
+strategy([{ type: "call", strike: 100, premium: 5 }, { type: "put", strike: 100, premium: 4 }]).breakEvens;  // [91, 109]
+binomialTree({ spot: 50, strike: 52, steps: 2, up: "6/5", down: "4/5", growth: "21/20", type: "put", style: "american" }).price;
+const v = blackScholes({ spot: 100, strike: 100, rate: "5%", volatility: "20%", time: 1 });
+show(v.call, 6);       // "10.450584"
+v.delta.call;          // N(d1), enclosed
+impliedVolatility({ price: "10.45", spot: 100, strike: 100, rate: "5%", time: 1 });
+```
+
+### Payoffs and strategies
+
+A call with strike K pays max(S−K,0) at expiry and a put pays max(K−S,0). `strategy(legs)` combines calls, puts, the stock and a bond, each with a premium and a quantity (negative for a short position). Profit is linear between strikes, so each break-even price is found by solving a linear equation on each piece, exactly. The maximum profit and loss are read off the corners, or are unbounded when the last slope is not zero.
+
+### Put–call parity
+
+A call bought and a put sold, both with strike K, pay S−K at expiry, whatever happens. That is the same as holding the stock and owing K, so for European options on a stock without dividends
+
+C−P=S−Ke−rT.
+`parity` finds whichever of the four is missing. Given all four it returns the gap, which is zero when no arbitrage is possible. With continuous compounding e−rT is enclosed. With `compounding: "annual"` and whole years it is an exact fraction.
+
+### The binomial tree
+
+In each step the price moves up by a factor u or down by d, and money grows by g. Holding Δ shares and some cash can copy the option's value in both outcomes, so its price is fixed. Equivalently, the price is the expected payoff discounted under the risk-neutral probability
+
+p=u−dg−d​,
+which lies strictly between 0 and 1 exactly when d. If that fails, the tree has an arbitrage and is refused. Working back from expiry gives the price as an exact fraction. For an American option, each node also compares the value of exercising now; the nodes where that wins are listed in `earlyExercise`. Without dividends an American call is never exercised early, and the tests check that its price equals the European one exactly.
+
+Given a volatility instead, the Cox–Ross–Rubinstein tree takes u=eσΔt​, d=1/u, g=erΔt. These are rounded to 8 decimal places, and the result says `rounded: true`. The exact tree's fractions grow with every step, so 100 steps take about a second. `float: true` runs the same induction in floating point for a quick preview.
+
+### Black–Scholes
+
+As the steps shrink the tree's price converges to the Black–Scholes value
+
+C=SN(d1​)−Ke−rTN(d2​),d1,2​=σT​ln(S/K)+(r±σ2/2)T​,
+and P=Ke−rTN(−d2​)−SN(−d1​). Here N is the normal distribution function, computed as 21​(1+erf(x/2​)) from analytic's certified error function. Every quantity is an interval proven to contain the true value. That includes the sensitivities: delta N(d1​), gamma φ(d1​)/(SσT​), vega Sφ(d1​)T​, theta and rho. A dividend yield q replaces S by Se−qT.
+
+The price rises with volatility, since vega is positive. So the implied volatility, the σ that reproduces a market price, can be found by bisection. Each step decides from certified values which half the answer is in, and the result is an interval proven to contain it.
+
+| call | returns |
+
+| strategy(legs) | { payoff(S), profit(S), cost, kinks, breakEvens, maxProfit, maxLoss } |
+
+| parity({ call, put, spot, strike, rate, time, compounding }) | the missing one, or { gap, holds } |
+
+| binomialTree({ spot, strike, steps, type, style, up, down, growth } or { volatility, time, rate }) | { price, probability, delta, earlyExercise, rounded, tree } |
+
+| blackScholes({ spot, strike, rate, volatility, time, dividendYield }) | { call, put, d1, d2, delta, gamma, vega, theta, rho }, all enclosed |
+
+| impliedVolatility({ price, type, spot, strike, rate, time, digits }) | an interval containing σ |
+
+| normalCdf(x), normalPdf(x) | enclosures |
+
+### Try it
+
+```js
+const legs = { straddle: [{ type: "call", strike: 100, premium: 5 }, { type: "put", strike: 100, premium: 4 }],
+  "bull spread": [{ type: "call", strike: 90, premium: 12 }, { type: "call", strike: 110, premium: 3, quantity: -1 }],
+  "covered call": [{ type: "stock", premium: 100 }, { type: "call", strike: 110, premium: 4, quantity: -1 }] };
+for (const [name, l] of Object.entries(legs)) {
+  const s = strategy(l);
+  PRINT(name.padEnd(13), "break even at", s.breakEvens.map(String).join(" and "), "| max profit", String(s.maxProfit ?? "unlimited"), "| max loss", String(s.maxLoss ?? "unlimited"));
+}
+const v = blackScholes({ spot: 100, strike: 100, rate: "5%", volatility: "20%", time: 1 });
+PRINT("Black–Scholes call", show(v.call, 8), "put", show(v.put, 8), "delta", show(v.delta.call, 6), "vega", show(v.vega, 6));
+for (const n of [10, 50, 100]) PRINT(`binomial tree, ${n} steps (exact):`, show(binomialTree({ spot: 100, strike: 100, steps: n, volatility: "20%", time: 1, rate: "5%" }).price, 6));
+PRINT("5000 steps in floating point:", binomialTree({ spot: 100, strike: 100, steps: 5000, volatility: "20%", time: 1, rate: "5%", float: true }).price.toFixed(6));
+const am = binomialTree({ spot: 50, strike: 52, steps: 2, up: "6/5", down: "4/5", growth: "21/20", type: "put", style: "american" });
+PRINT("American put, two steps:", String(am.price), "exercise early at", am.earlyExercise.map((e) => `step ${e.step}, price ${e.price}`).join("; "));
+show(impliedVolatility({ price: "12", spot: 100, strike: 100, rate: "5%", time: 1 }), 6)
+```
+
+---
+
+Page: https://ratmath.com/finance/life.html
+
+Topic
+
+## Life contingencies
+
+Life insurance and pensions value money that is paid only if someone is alive, or only when they die. With a life table of whole numbers and a rational interest rate, every present value is a fraction, and the identities that connect them hold exactly.
+
+```js
+const L = lifeTable({ l: [100000, 99500, 98900, …], startAge: 60 });   // or { q: [...] }, or deMoivre(100)
+L.p(60, 10);                                            // probability a 60-year-old reaches 70
+lifeAnnuity(L, { age: 65, rate: "4%" });                // ä: 1 a year from now while alive
+lifeInsurance(L, { age: 40, rate: "4%", term: 20 });    // A: 1 at the end of the year of death, within 20 years
+netPremium(L, { kind: "endowment", benefit: 100000, age: 40, rate: "4%", term: 20 });
+reserve(L, { kind: "endowment", benefit: 100000, age: 40, rate: "4%", term: 20, time: 10 });
+```
+
+### The life table
+
+A life table follows a group of lx​ people alive at age x. Of them dx​=lx​−lx+1​ die before x+1, so the probability of dying within a year is qx​=dx​/lx​ and of surviving t years t​px​=lx+t​/lx​. The table can be given as the lx​ or as the qx​ from a radix. It closes at the last age: everyone alive there dies within the year. No published table is built in; you supply the numbers. `deMoivre(ω)` gives the straight-line table lx​=ω−x, the classroom example.
+
+The curtate expectation of life, the whole years still to be lived, is ex​=∑k≥1​k​px​. If deaths are spread evenly through each year, the complete expectation is ex​+21​.
+
+### Annuities and insurances
+
+With v=1/(1+i), a life annuity-due pays 1 at the start of each year while the person is alive,
+
+a¨x​=k≥0∑​vkk​px​,
+and whole life insurance pays 1 at the end of the year of death,
+
+Ax​=k≥0∑​vk+1k​px​qx+k​.
+Term versions stop after n years, and deferred ones start after u. A pure endowment n​Ex​=vnn​px​ pays 1 at n if the person is alive, and an endowment insurance is term insurance plus that.
+
+Paying 1 at the end of the year of death is the same as paying d = i/(1+i) at the start of each year while alive, plus 1 at death. So Ax​=1−da¨x​, and the same holds for an endowment with the n-year annuity. Because everything here is exact, the tests check this identity with `equals`, not with a tolerance.
+
+### Premiums and reserves
+
+A level net premium P paid while alive must have the same present value as the benefit (the equivalence principle): Pa¨=benefit⋅A. After t years the reserve is what the insurer must hold. It is the value then of the benefit still to come, less the value of the premiums still to come. It is zero at the start by construction, and for an endowment it reaches the benefit at the end of the term. For whole life it equals 1−a¨x+t​/a¨x​ times the benefit.
+
+| call | returns |
+
+| lifeTable({ l } or { q, radix }, startAge), deMoivre(ω) | LifeTable: l, d, p, q, deferredQ, curtateExpectation, completeExpectation, rows() |
+
+| lifeAnnuity(table, { age, rate, term, due, deferred }) | exact |
+
+| lifeInsurance(table, { age, rate, term, deferred }) | exact |
+
+| pureEndowment, endowment(table, { age, rate, term }) | exact |
+
+| netPremium(table, { kind, benefit, age, rate, term, payments }) | exact |
+
+| reserve(table, { …, time }) | exact |
+
+### Try it
+
+```js
+const L = lifeTable({ q: ["1/200", "1/180", "1/160", "1/140", "1/120", "1/100", "1/80", "1/60", "1/45", "1/30", "1/20", "1/12", "1/7", "1/4", "1/2", "1"], radix: 100000, startAge: 60 });
+PRINT("age      l_x       q_x    e_x");
+for (const r of L.rows().filter((r) => r.age % 3 === 0)) PRINT(String(r.age).padEnd(4), show(r.l, 1).padStart(10), show(r.q, 5).padStart(9), show(r.e, 3).padStart(7));
+const i = "4%", d = amount("4/104");
+const a = lifeAnnuity(L, { age: 60, rate: i }), A = lifeInsurance(L, { age: 60, rate: i });
+PRINT("ä_60 =", show(a, 6), " A_60 =", show(A, 6), " A = 1 − d·ä exactly?", A.equals(amount(1).subtract(d.multiply(a))));
+const policy = { kind: "endowment", benefit: 10000, age: 60, rate: i, term: 10 };
+PRINT("10-year endowment of 10,000 at 60: net premium", show(netPremium(L, policy), 2));
+for (const t of [0, 2, 5, 8, 10]) PRINT("  reserve after", String(t).padStart(2), "years", show(reserve(L, { ...policy, time: t }), 2).padStart(10));
+deMoivre(100).curtateExpectation(40)
+```

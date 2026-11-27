@@ -1,0 +1,121 @@
+# @ratmath/finance
+
+> The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios, uncertain inputs and repeated runs, portfolios, options and life contingencies. Part of the RatMath Shelf; numbers come from @ratmath/core (a peer dependency). ESM: `import * as finance from "@ratmath/finance"`.
+
+Built from 0.2.0, commit ac28657. `file:line` is relative to the package root (also node_modules/@ratmath/finance/); on GitHub: https://github.com/ratmath/finance/blob/ac28657/<file>#L<line>. Docs pages are under https://ratmath.com/finance/. Full types: index.d.ts.
+
+Types: `type Amount = Rational | bigint | number | string`; `type Certified = Rational | RationalInterval`; `type RoundingMode = "half-even" | "half-up" | "half-down" | "up" | "down" | "floor" | "ceil"`; `type Rounding = RoundingRule | number | RoundingMode | boolean | "none" | null`; `type DateLike = CalendarDate | string | [number, number, number]`; `type DayCount = "30/360" | "30E/360" | "actual/360" | "actual/365" | "actual/actual"`; `type Flows = Amount[] | { t?: Amount; amount: Amount }[]`; `type DatedFlows = { date: DateLike; amount: Amount }[]`; `type DepreciationMethod = "straight-line" | "declining-balance" | "sum-of-years-digits" | "units-of-production"`; `type When = number | string`
+
+## Docs
+
+- https://ratmath.com/finance/llms-full.txt: every page below as Markdown, each with a runnable example
+- Pages: index (Overview), reference (Reference), explore (Explore), money (Money and rounding), dates (Dates and day counts), time-value (Time value of money), loans (Loans), cash-flows (Cash flows), bonds (Bonds), yield-curves (Yield curves), scenarios (Scenarios), uncertain (Uncertain inputs and repeated runs), portfolios (Portfolios), options (Options), life (Life contingencies)
+
+## API
+
+name(params) → result — meaning · file:line · docs page
+
+- `plan: readonly PlannedPhase[]` · src/plan.js:5 · index
+- `FinanceError class: code` · src/money.js:8
+- `amount(x: Amount) → Rational` — An exact amount or rate from a whole number, a bigint, a Rational or a string: "1234.56", "1,234.56", "$1,234.56", "7/8", "4.5%" (= 9/200), "-250". · src/money.js:29 · money
+- `rate(x: Amount) → Rational` — A rate: the same reading as `amount`, so "5%" and "0.05" are both 1/20. · src/money.js:51 · time-value
+- `round(x: Amount, rule?: RoundingRule) → Rational` — Round to a number of decimal places under a named rule. half-even is banker's rounding; half-up sends a tie away from zero (the commercial rule) and… · src/money.js:60 · money
+- `format(x: Amount, options?: RoundingRule & { currency?: string; separator?: string; percent?: boolean }) → string` — "1,234.50" from an exact amount: rounded for display only, by the rule given · src/money.js:95 · money
+- `allocate(total: Amount, weights: Amount[], options?: { places?: number }) → Rational[]` — Split a total into parts in proportion to weights so that the rounded parts add up to the total exactly: each part is rounded down and the units left over… · src/money.js:113 · money
+- `power(base: Amount, exponent: Amount, digits?: number) → Certified` — base^exponent for a positive rational base. · src/money.js:153
+- `exp(x: Amount | RationalInterval, digits?: number) → RationalInterval` — e^x enclosed for a rational or an interval · src/money.js:145
+- `ln(x: Amount | RationalInterval, digits?: number) → RationalInterval` — ln x enclosed · src/money.js:147
+- `show(x: Certified, places?: number) → string` — An exact number or an interval as a decimal with `places` places. · src/money.js:179 · money
+- `CalendarDate class: year, month, day, serial, isEndOfMonth, addDays, addMonths, compareTo, equals, toString` — A calendar date, with no time of day and no time zone. · src/money.js:210 · dates
+- `date(x: DateLike) → CalendarDate` — A date from "2027-03-15", "2027-03" (the first of the month), [y, m, d] or a CalendarDate. · src/money.js:242 · dates
+- `daysBetween(a: DateLike, b: DateLike) → number` · src/money.js:249 · dates
+- `dayCount(from: DateLike, to: DateLike, convention?: DayCount) → { days: number; yearFraction: Rational }` — Days and the fraction of a year between two dates under a convention: "30/360" (US bond basis), "30E/360" (Eurobond), "actual/360", "actual/365" (fixed) or… · src/money.js:258 · dates
+- `isLeap(year: number) → boolean` · src/money.js:206
+- `DAY_COUNTS: readonly DayCount[]` · src/money.js:251
+- `simpleInterest(principal: Amount, rate: Amount, time: Amount) → { interest: Rational; total: Rational }` — Simple interest: principal·rate·time. { interest, total }. · src/tvm.js:20
+- `compound(principal: Amount, rate: Amount, years: Amount, options?: Digits & { periodsPerYear?: Amount | "continuous" }) → Certified` — What a principal grows to in `years` at a nominal annual rate compounded periodsPerYear times a year, or "continuous". · src/tvm.js:29 · time-value
+- `effectiveRate(nominal: Amount, periodsPerYear?: Amount | "continuous", options?: Digits) → Certified` — The effective annual rate of a nominal rate compounded m times a year (or "continuous"). · src/tvm.js:36 · time-value
+- `nominalRate(effective: Amount, periodsPerYear?: Amount | "continuous", options?: Digits) → Certified` — The nominal annual rate, compounded m times a year (or "continuous"), that has a given effective annual rate. · src/tvm.js:43 · time-value
+- `equivalentRate(nominal: Amount, from: Amount, to: Amount, options?: Digits) → Certified` — A nominal rate compounded `from` times a year restated as one compounded `to` times a year. · src/tvm.js:50 · time-value
+- `realRate(nominal: Amount, inflation: Amount) → Rational` — The real rate behind a nominal rate and an inflation rate (Fisher, exactly): (1 + n)/(1 + π) − 1. · src/tvm.js:55 · time-value
+- `discountFactor(rate: Amount, periods: Amount, options?: Digits) → Certified` — (1 + rate)^−periods · src/tvm.js:58
+- `futureValue(pv: Amount, rate: Amount, periods: Amount, options?: Digits) → Certified` · src/tvm.js:59
+- `presentValue(fv: Amount, rate: Amount, periods: Amount, options?: Digits) → Certified` · src/tvm.js:60
+- `annuity(spec: AnnuitySpec) → { presentValue: Rational; futureValue: Rational; total: Rational; payments: number }` — A level or growing annuity: `periods` payments, the first of `payment`, each later one (1 + growth) times the one before; at the end of each period… · src/tvm.js:71 · time-value
+- `perpetuity(spec: Omit<AnnuitySpec, "periods">) → Rational` — A perpetuity: payments for ever, level or growing at a rate below the interest rate. · src/tvm.js:85
+- `tvm(problem: TvmProblem) → TvmAnswer` — The equation that ties together a present value, a level payment, a future value, a rate per period and a number of periods, pv + pmt·a + fv·(1 + rate)^−n =… · src/tvm.js:102 · time-value
+- `rateRoots(coefficients: Rational[], options?: Digits & { limit?: number }) → SolvedRate[]` — Every rate r > −1 with Σ coeffs[k]·(1 + r)^k = 0, in increasing order: [{ rate, exact, text, multiplicity }]. · src/solve.js:52
+- `loan(spec: LoanSpec) → Loan` — A loan and its schedule. loan({ principal: 250000, rate: "6%", periods: 360 }) `rate` is the nominal annual rate; the rate per period is rate/periodsPerYear. · src/loans.js:35 · loans
+- `levelPayment(balance: Amount, periodicRate: Amount, periods: number, balloon?: Amount) → Rational` — the level payment that takes a balance to `balloon` in n periods at a periodic rate, exactly · src/loans.js:15
+- `compareLoans(a: Loan | LoanSpec, b: Loan | LoanSpec) → { a: LoanSummary; b: LoanSummary; difference: LoanSummary }` — Two loans side by side: payment, number of payments, interest and total paid, and the differences (b − a). · src/loans.js:106 · loans
+- `refinance( current: Omit<LoanSpec, "principal"> & { balance: Amount }, proposed: Omit<LoanSpec, "principal">, options?: { costs?: Amount; rollIn?: boolean; rounding?: Rounding }, ) → { current: Loan; proposed: Loan; costs: …` — Refinancing: keep the current loan (its balance, rate and remaining periods) or replace it with a new one that has costs. · src/loans.js:117 · loans
+- `revolving(spec: { balance: Amount; rate: Amount; periodsPerYear?: Amount; payment: Amount | { percent?: Amount; minimum?: Amount }; purchases?: Amount | ((period: number) => Amount | undefined); rounding?: Rounding …` — Revolving credit: interest on the balance each period, then a payment that is a fixed amount or { percent, minimum } of the balance, then any new purchases. · src/loans.js:139 · loans
+- `loanAPR(spec: Digits & { principal: Amount; fees?: Amount; payment: Amount; periods: number; periodsPerYear?: Amount; balloon?: Amount }) → { periodic: Certified; nominal: Certified; effective: Certified; exact: boolean }` — The rate a borrower really pays once fees are counted: the borrower receives principal − fees and makes the payments. { periodic, nominal (the APR: periodic… · src/loans.js:172 · loans
+- `npv(rate: Amount, flows: Flows, options?: Digits) → Certified` — Net present value at a rate per period. · src/cashflow.js:41 · cash-flows
+- `xnpv(rate: Amount, flows: DatedFlows, options?: Digits & { dayCount?: DayCount }) → Certified` — Net present value of dated flows at an annual rate, time measured from the first date by a day-count convention. · src/cashflow.js:47 · dates
+- `irr(flows: Flows, options?: Digits) → RatesOfReturn` — Every internal rate of return of a list of amounts at times 0, 1, 2, …: each rate above −100% at which the net present value is zero. { rates: [{ rate,… · src/cashflow.js:58 · cash-flows
+- `xirr(flows: DatedFlows, options?: Digits & { dayCount?: DayCount; range?: [Amount, Amount] }) → Omit<RatesOfReturn, "rates"> & { rates: { rate: Certified; exact: boolean; text: string; proven: boolean }[]; formula?: string }` — Every internal rate of return of dated flows, as an annual rate with time from the first date by a day-count convention. · src/cashflow.js:78 · dates
+- `mirr(flows: Amount[], financeRate: Amount, reinvestRate: Amount, options?: Digits) → Certified` — The modified internal rate of return: money out is financed at one rate and money in is reinvested at another, which gives a single answer: (FV of inflows /… · src/cashflow.js:98 · cash-flows
+- `payback(flows: Amount[], options?: { rate?: Amount }) → { period: number | null; fractional: Rational | null; cumulative: Rational[] }` — When the money comes back. { period: the first whole period at which the running total is no longer negative (null if never), fractional: the same with the… · src/cashflow.js:118 · cash-flows
+- `realValue(nominal: Amount, inflation: Amount, periods: Amount, options?: Digits) → Certified` — What a nominal amount `periods` from now is worth in today's money: amount/(1 + inflation)^periods. · src/cashflow.js:138 · cash-flows
+- `nominalValue(real: Amount, inflation: Amount, periods: Amount, options?: Digits) → Certified` — What today's amount becomes after `periods` of inflation: amount·(1 + inflation)^periods. · src/cashflow.js:140 · cash-flows
+- `depreciation(spec: { cost: Amount; salvage?: Amount; life?: number; method?: DepreciationMethod; /** Declining balance: the rate is factor/life (default 2). */ factor?: Amount; switchToStraightLine?: boolean; units?: Amount[] …` — A depreciation schedule: [{ period, depreciation, accumulated, bookValue }]. · src/cashflow.js:151 · cash-flows
+- `DEPRECIATION: readonly DepreciationMethod[]` · src/cashflow.js:142
+- `taxSchedule(brackets: { upTo?: Amount | null; rate: Amount }[], options?: { rounding?: Rounding }) → { brackets: { upTo: Rational | null; rate: Rational }[]; on(income: Amount): TaxResult }` — A tax, or any charge, given as brackets: [{ upTo, rate }, …] in increasing order, the last with no upTo. · src/cashflow.js:186 · cash-flows
+- `Bond class: face, coupon, frequency, redemption, couponAmount, periods, accrued, accruedDays, first, settlement, maturity, cashflows, price, yield, duration` · src/bonds.js:18
+- `bond(spec: BondSpec | Bond) → Bond` · src/bonds.js:128 · bonds
+- `YieldCurve class: discountFactors, frequency, periods, discount, spot, forward, parYield, price, spots, forwards` — A curve of discount factors d_1, d_2, … for whole periods (`frequency` periods a year), with the spot and forward rates they imply. · src/bonds.js:134
+- `yieldCurve(spec: { spots?: Amount[]; discountFactors?: Amount[]; frequency?: number }) → YieldCurve` — A curve from spot rates (nominal annual, compounded `frequency` times a year) for 1, 2, 3, … periods, or from discount factors. · src/bonds.js:181 · yield-curves
+- `bootstrap(bonds: (BondSpec & { price: Amount })[], options?: { frequency?: number }) → YieldCurve` — Bootstrapping: discount factors from the prices of bonds maturing in 1, 2, 3, … periods, one for each, each bond's earlier coupons valued with the factors… · src/bonds.js:191 · yield-curves
+- `immunise(problem: { liability: { amount: Amount; time: Amount }; yield: Amount; bonds: [BondSpec | Bond, BondSpec | Bond] }) → { presentValue: Rational; weights: [Rational, Rational]; amounts: [Rational, Rational]; units: …` — Immunisation: split the money for a single liability between two bonds so that, at the going yield, the assets have the liability's present value and its… · src/bonds.js:210 · yield-curves
+- `Scenario class: periods, periodsPerYear, project` · src/scenario.js:75
+- `scenario(spec: ScenarioSpec | Scenario) → Scenario` · src/scenario.js:189 · scenarios
+- `compare( scenarios: Record<string, ScenarioSpec | Scenario>, options?: { measure?: (p: Projection) => Rational }, ) → { rows: { name: string; outcome: Rational; netWorth: Rational; difference: Rational; firstNegative: …` — Scenarios side by side: compare({ rent: {...}, buy: {...} }). { rows: [{ name, netWorth, difference (from the first), minimum }], best, series (net worth by… · src/scenario.js:198 · scenarios
+- `sensitivity( build: (inputs: Record<K, Dual>) => ScenarioSpec | Scenario, inputs: Record<K, Amount>, options?: { measure?: (p: Projection) => Rational | Dual }, ) → { base: Rational; rows: { input: K; value: Rational; derivative: …` — Which input moves the outcome most. · src/scenario.js:231 · scenarios
+- `Dual class: v, d, add, subtract, multiply, divide, negate, pow, compareTo, toString` — A value together with its derivative with respect to one chosen input. · src/scenario.js:10
+- `Process class: name, kind, path, rates` · src/uncertain.js:46
+- `processes: { fixed(rate: Amount): Process; independent(dist: Sampler): Process; /** Annual returns from a finite list with exact weights: small cases can be enumerated exactly. */ choice(values: Amount[], weights?: Amount[]): …` · src/uncertain.js:81 · uncertain
+- `simulate( spec: ScenarioSpec, options?: { returns?: Record<string, Process>; inflation?: Process | null; indexed?: string[]; events?: RandomEvent[]; runs?: number; seed?: unknown; rounding?: Rounding; measure?: (p: Projection) …` — Many runs of a scenario with uncertain inputs. simulate(spec, { returns: { stocks: processes.gbm({ drift: "6%", volatility: "18%" }) }, inflation:… · src/uncertain.js:290 · uncertain
+- `Simulation class: kind, name, seed, runs, rounding, outcomes, sorted, mean, standardError, percentiles, ruin, ruinTimes, bands, real, quantile` · src/uncertain.js:239
+- `sequenceRisk( spec: ScenarioSpec, options: { account: string; returns: Amount[]; shuffles?: number; seed?: unknown; measure?: (p: Projection) => Rational }, ) → { rows: { order: string; returns: Rational[]; outcome: Rational …` — The order of good and bad years. · src/uncertain.js:368 · uncertain
+- `Portfolio class: names, means, covariance, expectedReturn, variance, risk, constants, minimumVariance, tangency` · src/portfolio.js:59
+- `portfolio(spec: ConstructorParameters<typeof Portfolio>[0]) → Portfolio` · src/portfolio.js:207 · portfolios
+- `returnsFrom(prices: Amount[]) → Rational[]` — Simple returns p[k+1]/p[k] − 1 from a list of prices; exact. · src/portfolio.js:45 · portfolios
+- `capm(spec: { asset: Amount[]; market: Amount[]; riskFree?: Amount; marketReturn?: Amount | null }) → { beta: Rational; alpha: Rational; required: Rational; marketPremium: Rational; riskFree: Rational }` — The capital asset pricing model from returns: β = cov(asset, market) / var(market), α = mean(asset) − (r + β·(mean(market) − r)), and the required return r… · src/portfolio.js:214 · portfolios
+- `solveExact(M: Rational[][], b: Rational[]) → Rational[] | null` — Solve M x = b exactly (Gauss–Jordan over the rationals); null when M is singular. · src/portfolio.js:26
+- `strategy(legs: Leg[]) → { legs: Leg[]; cost: Rational; payoff(spot: Amount): Rational; profit(spot: Amount): Rational; kinks: Rational[]; breakEvens: Rational[]; maxProfit: Rational | null; maxLoss: Rational | null; }` — A strategy: legs { type: "call" | "put" | "stock" | "bond", strike (for an option; the face for a bond), premium (what one unit cost; default 0), quantity… · src/options.js:29 · options
+- `parity(spec: { call?: Amount; put?: Amount; spot?: Amount; strike?: Amount; rate: Amount; time: Amount; compounding?: "continuous" | "annual"; bits?: number }) → { call?: Certified; put?: Certified; spot?: Certified …` — Put–call parity C − P = S − K·DF for European options on a stock without dividends. · src/options.js:83 · options
+- `binomialTree(spec: { spot: Amount; strike: Amount; steps: number; type?: "call" | "put"; style?: "european" | "american"; up?: Amount; down?: Amount; growth?: Amount; volatility?: Amount; time?: Amount; rate?: Amount; places?: …` — Price an option on a recombining binomial tree, exactly. { spot, strike, steps, type: "call" | "put", style: "european" | "american", up, down, growth }:… · src/options.js:114 · options
+- `blackScholes(spec: { spot: Amount; strike: Amount; rate: Amount; volatility: Amount; time: Amount; dividendYield?: Amount; bits?: number }) → { call: RationalInterval; put: RationalInterval; d1: RationalInterval; d2: …` — European option values under Black–Scholes with continuous compounding: { spot, strike, rate, volatility, time, dividendYield = 0 }. · src/options.js:215 · options
+- `impliedVolatility(spec: { price: Amount; type?: "call" | "put"; spot: Amount; strike: Amount; rate: Amount; time: Amount; dividendYield?: Amount; digits?: number; bits?: number }) → RationalInterval` — The volatility at which Black–Scholes gives a stated price, enclosed to `digits` digits. · src/options.js:260 · options
+- `normalCdf(x: Amount | RationalInterval, bits?: number) → RationalInterval` — the standard normal distribution function, enclosed: (1 + erf(x/√2))/2 · src/options.js:197
+- `normalPdf(x: Amount | RationalInterval, bits?: number) → RationalInterval` — the standard normal density, enclosed · src/options.js:199
+- `LifeTable class: startAge, lastAge, lives, l, d, p, q, deferredQ, curtateExpectation, completeExpectation, rows` · src/life.js:10
+- `lifeTable(spec: ConstructorParameters<typeof LifeTable>[0]) → LifeTable` · src/life.js:80 · life
+- `deMoivre(omega: number, options?: { startAge?: number }) → LifeTable` — de Moivre's law: l_x = ω − x, so deaths are uniform up to the limiting age ω. · src/life.js:82 · life
+- `lifeAnnuity(table: LifeTable, spec: { age: number; rate: Amount; term?: number | null; due?: boolean; deferred?: number }) → Rational` — Life annuity of 1 a year for a life aged x: due (payments at the start of each year, ä) or immediate (at the end, a), for `term` years (default for life),… · src/life.js:99 · life
+- `lifeInsurance(table: LifeTable, spec: { age: number; rate: Amount; term?: number | null; deferred?: number }) → Rational` — Life insurance of 1 paid at the end of the year of death, for a life aged x: whole life (term null) or for `term` years, after `deferred` years. · src/life.js:114 · life
+- `pureEndowment(table: LifeTable, spec: { age: number; rate: Amount; term: number }) → Rational` — pure endowment nEx = v^n · nPx: 1 paid at time n if the life is alive · src/life.js:125
+- `endowment(table: LifeTable, spec: { age: number; rate: Amount; term: number }) → Rational` — endowment insurance: term insurance plus the pure endowment · src/life.js:127 · life
+- `netPremium(table: LifeTable, spec: { kind?: PolicyKind; benefit?: Amount; age: number; rate: Amount; term?: number | null; payments?: number | null }) → Rational` — The level annual net premium (paid at the start of each year while alive, for `payments` years) for a benefit: { kind: "whole life" | "term" | "endowment",… · src/life.js:138 · life
+- `reserve(table: LifeTable, spec: { kind?: PolicyKind; benefit?: Amount; age: number; rate: Amount; term?: number | null; payments?: number | null; time: number }) → Rational` — The prospective net reserve after t years: the value then of the benefit still to come less the value of the premiums still to come. · src/life.js:150 · life
+
+## Example
+
+```js
+import { plan, amount, format, show, loan, irr, bond } from "@ratmath/finance";
+const l = loan({ principal: 250000, rate: "6%", periods: 360 });
+console.log("payment", show(l.payment, 2), " exactly", show(l.exactPayment, 8), "before rounding");
+console.log("last payment", show(l.finalPayment, 2), " total interest", format(l.totals.interest));
+console.log("in floating point, 0.1 + 0.2 =", 0.1 + 0.2, "; here:", String(amount("0.1").add(amount("0.2"))));
+const two = irr([-1000, 2300, -1320]);
+console.log("rates of return of −1000, +2300, −1320:", two.rates.map((r) => r.text).join(" and "), "—", two.note);
+const b = bond({ coupon: "5%", periods: 20 });
+console.log("bond at a 6% yield:", show(b.price("6%").clean, 6), " duration", show(b.duration("6%").macaulay, 4), "years");
+plan.map((p) => `${p.phase}. ${p.contents}`)
+```
+
+## More
+
+- tests/: worked examples for every function
+- https://ratmath.com/core/ (numbers), https://ratmath.com/shelf/ (all the libraries)
