@@ -1,6 +1,6 @@
 # @ratmath/finance 0.2.0: full documentation
 
-> The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios, uncertain inputs and repeated runs, portfolios, options and life contingencies. From https://ratmath.com/finance/, commit ac28657. Each page ends with a runnable example; in it, PRINT(...) prints.
+> The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios, uncertain inputs and repeated runs, portfolios, options and life contingencies. From https://ratmath.com/finance/, commit a406eba. Each page ends with a runnable example; in it, PRINT(...) prints.
 
 
 ---
@@ -85,7 +85,7 @@ Every export of `@ratmath/finance`, with what it takes and what it returns. Amou
 
 | amount(x), rate(x) | Read an exact amount or rate. |
 
-| round(x, { places = 2, mode = "half-even" }) | Round by a named rule: half-even, half-up, half-down, up, down, floor, ceil. See Money and rounding. |
+| round(x, { places = 2, mode = "half-even" }) | Round by a rule: half-even (the default, MONEY_ROUNDING), half-up, half-down, up, down, floor, ceil, any Core mode name, a Core rounder or your own function; moneyRounder(mode) gives the Core rounder. See Money and rounding. |
 
 | format(x, { places, mode, currency, separator, percent }) | An amount as text, rounded for display. |
 
@@ -296,7 +296,9 @@ When an exact amount such as 1498.876313… must become a payable one, a rule is
 
 | floor / ceil | 2.34 / 2.35 | 2.35 / 2.36 | −2.35 / −2.34 | always towards −∞ / +∞ |
 
-`places` may be negative: `round(1250, { places: -2 })` is 1200 under half-even. Functions that produce schedules take a `rounding` option: `{ places, mode }`, a number of places, or `false` for none.
+`places` may be negative: `round(1250, { places: -2 })` is 1200 under half-even. Functions that produce schedules take a `rounding` option: `{ places, mode }`, a number of places, a mode, or `false` for none.
+
+Rounding goes through Core's `rounding()`, so a mode can also be any Core mode name (`half-odd`, `toward-zero`, ...), a rounder made by `rounding(...)`, or your own function given `{ value, floor, ceil, fraction }` that returns `floor` or `ceil`. The default is the exported constant `MONEY_ROUNDING`, half-even. Core itself rounds half up by default; finance keeps banker's rounding because that is the usual default in accounting software. Many tax and currency-conversion rules require half-up instead: name it where they apply.
 
 ### Splitting without losing a cent
 
@@ -1131,7 +1133,7 @@ The price rises with volatility, since vega is positive. So the implied volatili
 
 | strategy(legs) | { payoff(S), profit(S), cost, kinks, breakEvens, maxProfit, maxLoss } |
 
-| parity({ call, put, spot, strike, rate, time, compounding }) | the missing one, or { gap, holds } |
+| parity({ call, put, spot, strike, rate, time, compounding }) | the missing one, or { gap, holds }; prices may be enclosures, such as blackScholes(…).call |
 
 | binomialTree({ spot, strike, steps, type, style, up, down, growth } or { volatility, time, rate }) | { price, probability, delta, earlyExercise, rounded, tree } |
 

@@ -18,7 +18,11 @@ export class FinanceError extends Error {
 export type Amount = Rational | bigint | number | string;
 /** Exact when it can be, otherwise an interval proven to contain the value. */
 export type Certified = Rational | RationalInterval;
-export type RoundingMode = "half-even" | "half-up" | "half-down" | "up" | "down" | "floor" | "ceil";
+/** Finance's names plus every Core rounding mode name, or a Core rounder or your own function returning floor or ceil. */
+export type RoundingMode =
+  | "half-even" | "half-up" | "half-down" | "half-odd" | "half-ceil" | "half-floor"
+  | "up" | "down" | "floor" | "ceil" | "toward-zero" | "away-from-zero"
+  | ((info: { value: Rational; floor: any; ceil: any; fraction: Rational }) => any);
 export interface RoundingRule {
   places?: number;
   mode?: RoundingMode;
@@ -34,6 +38,10 @@ export interface Digits {
 
 export function amount(x: Amount): Rational;
 export function rate(x: Amount): Rational;
+/** The mode money rounds by when none is named: "half-even" (banker's rounding). */
+export const MONEY_ROUNDING: "half-even";
+/** A Core rounder for a mode (default MONEY_ROUNDING); "up" and "down" mean away from and towards zero. */
+export function moneyRounder(mode?: RoundingMode): ((x: any, places?: number) => any) & { mode: unknown };
 export function round(x: Amount, rule?: RoundingRule): Rational;
 export function format(x: Amount, options?: RoundingRule & { currency?: string; separator?: string; percent?: boolean }): string;
 /** A decimal with `places` places; an interval prints as one number when both ends round to it. */

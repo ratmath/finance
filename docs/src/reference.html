@@ -24,7 +24,7 @@
 <div class="tablewrap"><table class="ref">
 <tr><th>Export</th><th>What it does</th></tr>
 <tr><td>amount(x), rate(x)</td><td>Read an exact amount or rate.</td></tr>
-<tr><td>round(x, { places = 2, mode = "half-even" })</td><td>Round by a named rule: half-even, half-up, half-down, up, down, floor, ceil. See <a href="money.html">Money and rounding</a>.</td></tr>
+<tr><td>round(x, { places = 2, mode = "half-even" })</td><td>Round by a rule: half-even (the default, <code>MONEY_ROUNDING</code>), half-up, half-down, up, down, floor, ceil, any Core mode name, a Core rounder or your own function; <code>moneyRounder(mode)</code> gives the Core rounder. See <a href="money.html">Money and rounding</a>.</td></tr>
 <tr><td>format(x, { places, mode, currency, separator, percent })</td><td>An amount as text, rounded for display.</td></tr>
 <tr><td>show(x, places)</td><td>A Rational or an interval as a decimal; an interval prints as one number when its rounding is certain.</td></tr>
 <tr><td>allocate(total, weights, { places })</td><td>Shares that add up to the total exactly.</td></tr>

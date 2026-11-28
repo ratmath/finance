@@ -38,7 +38,8 @@ allocate(100, [1, 1, 1]);               // 33.34, 33.33, 33.33</code></pre>
 <tr><td>up / down</td><td>2.35 / 2.34</td><td>2.36 / 2.35</td><td>−2.35 / −2.34</td><td>always away from / towards zero</td></tr>
 <tr><td>floor / ceil</td><td>2.34 / 2.35</td><td>2.35 / 2.36</td><td>−2.35 / −2.34</td><td>always towards −∞ / +∞</td></tr>
 </table></div>
-<p><code>places</code> may be negative: <code>round(1250, { places: -2 })</code> is 1200 under half-even. Functions that produce schedules take a <code>rounding</code> option: <code>{ places, mode }</code>, a number of places, or <code>false</code> for none.</p>
+<p><code>places</code> may be negative: <code>round(1250, { places: -2 })</code> is 1200 under half-even. Functions that produce schedules take a <code>rounding</code> option: <code>{ places, mode }</code>, a number of places, a mode, or <code>false</code> for none.</p>
+<p>Rounding goes through Core's <code>rounding()</code>, so a mode can also be any Core mode name (<code>half-odd</code>, <code>toward-zero</code>, ...), a rounder made by <code>rounding(...)</code>, or your own function given <code>{ value, floor, ceil, fraction }</code> that returns <code>floor</code> or <code>ceil</code>. The default is the exported constant <code>MONEY_ROUNDING</code>, half-even. Core itself rounds half up by default; finance keeps banker's rounding because that is the usual default in accounting software. Many tax and currency-conversion rules require half-up instead: name it where they apply.</p>
 
 <h2>Splitting without losing a cent</h2>
 <p>A third of 100.00 is 33.33⅓. Rounding each share gives 99.99 or 100.01. <code>allocate</code> rounds every share down and hands out the cents left over to the shares that lost most (the largest-remainder method), so the parts always add to the total.</p>

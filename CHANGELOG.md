@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Money rounding is built on Core 0.12's `rounding()`: `round`, `format` and
+  every `rounding` option now also take any Core mode name (`half-odd`,
+  `toward-zero`, ...), a Core rounder, or your own function given
+  `{ value, floor, ceil, fraction }`. The default stays half-even (banker's
+  rounding, usual in accounting software) and lives in one exported constant,
+  `MONEY_ROUNDING`; `moneyRounder(mode)` returns the Core rounder for a mode.
+  Core's own default is half-up; finance keeps half-even on purpose.
 - Requires Core 0.12: the `@ratmath/core` peer range is now `>=0.12.0` (Core 0.12 returns Integers from `floor`/`ceil`/`trunc`/`round` and rounds half up by default).
 - `parity` takes enclosed prices: the call (or put) that `blackScholes`
   returns goes straight in, and the missing price comes back enclosed. It used
