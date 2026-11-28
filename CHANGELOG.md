@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Requires Core 0.12: the `@ratmath/core` peer range is now `>=0.12.0` (Core 0.12 returns Integers from `floor`/`ceil`/`trunc`/`round` and rounds half up by default).
 - `parity` takes enclosed prices: the call (or put) that `blackScholes`
   returns goes straight in, and the missing price comes back enclosed. It used
   to refuse with "cannot read … as an exact amount". Found by the Course Test
