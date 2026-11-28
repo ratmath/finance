@@ -1,6 +1,7 @@
 import { expect, test, describe } from "bun:test";
-import { Rational, RationalInterval } from "@ratmath/core";
-import { amount, round, format, allocate, power, show, date, daysBetween, dayCount, simpleInterest, compound, effectiveRate, nominalRate, equivalentRate, realRate, presentValue, futureValue, annuity, perpetuity, tvm, FinanceError } from "../index.js";
+import { Rational, RationalInterval, rounding } from "@ratmath/core";
+import { rounder } from "../src/money.js";
+import { amount, MONEY_ROUNDING, moneyRounder, round, format, allocate, power, show, date, daysBetween, dayCount, simpleInterest, compound, effectiveRate, nominalRate, equivalentRate, realRate, presentValue, futureValue, annuity, perpetuity, tvm, FinanceError } from "../index.js";
 
 const q = (s) => new Rational(s);
 const has = (iv, x) => iv.low.compareTo(q(x)) <= 0 && iv.high.compareTo(q(x)) >= 0;
@@ -38,6 +39,21 @@ describe("money", () => {
     expect(r("-2.349", "ceil")).toBe("-117/50");
     expect(r("1250", "half-even", -2)).toBe("1200");
     expect(code(() => round(1, { mode: "nearest" }))).toBe("bad-rounding");
+  });
+  test("rounding goes through Core rounders, half-even by default", () => {
+    expect(MONEY_ROUNDING).toBe("half-even");
+    expect(round("2.345").toString()).toBe("117/50");
+    expect(moneyRounder().mode).toBe("half-even");
+    expect(moneyRounder("up").mode).toBe("away-from-zero");
+    expect(moneyRounder("down")).toBe(moneyRounder("toward-zero"));
+    // any Core mode name, a Core rounder, or your own rule
+    expect(round("2.345", { mode: "half-odd" }).toString()).toBe("47/20");
+    expect(round("2.345", { mode: rounding("half-up") }).toString()).toBe("47/20");
+    const fromSeven = ({ floor, ceil, fraction }) => (fraction.lessThan(new Rational(7n, 10n)) ? floor : ceil);
+    expect(round("2.346", { mode: fromSeven }).toString()).toBe("117/50");
+    expect(round("2.347", { mode: fromSeven }).toString()).toBe("47/20");
+    expect(format("2.345", { mode: "half-up" })).toBe("2.35");
+    expect(rounder(fromSeven)("2.347").toString()).toBe("47/20");
   });
   test("formatting", () => {
     expect(format("1234567.891")).toBe("1,234,567.89");

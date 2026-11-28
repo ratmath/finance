@@ -5,7 +5,7 @@
 // scenario is projected exactly, so comparisons and sensitivities are exact.
 
 export { plan } from "./src/plan.js";
-export { FinanceError, amount, rate, round, format, allocate, power, exp, ln, show, CalendarDate, date, daysBetween, dayCount, isLeap, DAY_COUNTS } from "./src/money.js";
+export { FinanceError, amount, rate, MONEY_ROUNDING, moneyRounder, round, format, allocate, power, exp, ln, show, CalendarDate, date, daysBetween, dayCount, isLeap, DAY_COUNTS } from "./src/money.js";
 export { simpleInterest, compound, effectiveRate, nominalRate, equivalentRate, realRate, discountFactor, futureValue, presentValue, annuity, perpetuity, tvm } from "./src/tvm.js";
 export { rateRoots } from "./src/solve.js";
 export { loan, levelPayment, compareLoans, refinance, revolving, loanAPR } from "./src/loans.js";

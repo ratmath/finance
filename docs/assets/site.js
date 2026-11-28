@@ -1,8 +1,8 @@
 // Shared page furniture for the finance docs: the contents column, the theme
 // switch and the code boxes. Add each topic page to PAGES as it is written.
 
-import * as A from "./finance.js?v=35a3138947";
-import { mountRunboxes } from "./runbox.js?v=35a3138947";
+import * as A from "./finance.js?v=624d19232f";
+import { mountRunboxes } from "./runbox.js?v=624d19232f";
 
 export { A };
 

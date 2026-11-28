@@ -2,7 +2,7 @@
 // unless a rounding rule is named, and then the rule says how. Also here:
 // calendar dates and day-count conventions, and the certified power that
 // the rest of the package uses when an exponent is not a whole number.
-import { Rational, RationalInterval } from "@ratmath/core";
+import { Rational, RationalInterval, ROUNDING_MODES, isRoundingMode, rounding } from "@ratmath/core";
 import { enclose } from "@ratmath/analytic";
 
 export class FinanceError extends Error {
@@ -50,49 +50,52 @@ export function amount(x) {
 /** A rate: the same reading as `amount`, so "5%" and "0.05" are both 1/20. */
 export const rate = amount;
 
-const MODES = new Set(["half-even", "half-up", "half-down", "up", "down", "floor", "ceil"]);
+// Finance's own names for the directed rules, on top of every name Core knows.
+const ALIASES = { up: "away-from-zero", down: "toward-zero" };
 /**
- * Round to a number of decimal places under a named rule. half-even is
- * banker's rounding; half-up sends a tie away from zero (the commercial
- * rule) and half-down towards it; up and down are away from and towards
- * zero; floor and ceil are towards −∞ and +∞.
+ * The rule money is rounded by when none is named: half-even (banker's
+ * rounding), the usual default in accounting and financial software because
+ * ties do not drift totals upward. One constant, so the default can be
+ * changed in one place; pass `mode` to use another rule.
  */
-export function round(x, { places = 2, mode = "half-even" } = {}) {
-  if (!MODES.has(mode)) refuse("bad-rounding", `the rounding mode is one of ${[...MODES].join(", ")}`);
+export const MONEY_ROUNDING = "half-even";
+const rounders = new Map();
+/**
+ * A Core rounder for a mode: a name from Core's ROUNDING_MODES, "up" or
+ * "down" (away from and towards zero), a rounder made by Core's
+ * `rounding(...)`, or your own function given { value, floor, ceil, fraction }
+ * and returning floor or ceil.
+ */
+export function moneyRounder(mode = MONEY_ROUNDING) {
+  if (typeof mode === "function") return typeof mode.mode === "undefined" ? rounding(mode) : mode;
+  const name = ALIASES[mode] ?? mode;
+  if (!isRoundingMode(name)) refuse("bad-rounding", `the rounding mode is one of ${[...ROUNDING_MODES, ...Object.keys(ALIASES)].join(", ")}, or a function`);
+  if (!rounders.has(name)) rounders.set(name, rounding(name));
+  return rounders.get(name);
+}
+/**
+ * Round to a number of decimal places under a rule (MONEY_ROUNDING, so
+ * half-even, unless one is named). half-up sends a tie away from zero (the
+ * commercial rule, and what many tax and currency-conversion rules require)
+ * and half-down towards it; up and down are away from and towards zero;
+ * floor and ceil are towards −∞ and +∞. Every Core rounding mode and a
+ * custom function also work: see `moneyRounder`.
+ */
+export function round(x, { places = 2, mode = MONEY_ROUNDING } = {}) {
+  const r = moneyRounder(mode);
   if (!Number.isInteger(places) || places < -30 || places > 60) refuse("bad-rounding", "places is a whole number from -30 to 60");
-  const q = amount(x);
-  const scale = places >= 0 ? Q(10n ** BigInt(places)) : Q(1n, 10n ** BigInt(-places));
-  const y = q.multiply(scale);
-  const [n, d] = [y.numerator, y.denominator];
-  const neg = n < 0n;
-  const a = neg ? -n : n;
-  let whole = a / d;
-  const rem = a % d;
-  if (rem !== 0n) {
-    const twice = 2n * rem;
-    const tie = twice === d;
-    let bump;
-    if (mode === "up") bump = true;
-    else if (mode === "down") bump = false;
-    else if (mode === "floor") bump = neg;
-    else if (mode === "ceil") bump = !neg;
-    else if (twice > d) bump = true;
-    else if (!tie) bump = false;
-    else bump = mode === "half-up" ? true : mode === "half-down" ? false : whole % 2n === 1n;
-    if (bump) whole += 1n;
-  }
-  return new Rational(neg ? -whole : whole).divide(scale);
+  return r(amount(x), places);
 }
 /** rounding rule from an option: false or "none" for no rounding, a number of places, or { places, mode } */
 export function rounder(rule) {
   if (rule === false || rule === null || rule === "none") return (x) => x;
-  const r = rule === undefined || rule === true ? {} : typeof rule === "number" ? { places: rule } : typeof rule === "string" ? { mode: rule } : rule;
+  const r = rule === undefined || rule === true ? {} : typeof rule === "number" ? { places: rule } : typeof rule === "string" || typeof rule === "function" ? { mode: rule } : rule;
   round(ZERO, r);
   return (x) => round(x, r);
 }
 
 /** "1,234.50" from an exact amount: rounded for display only, by the rule given */
-export function format(x, { places = 2, mode = "half-even", currency = "", separator = ",", percent = false } = {}) {
+export function format(x, { places = 2, mode = MONEY_ROUNDING, currency = "", separator = ",", percent = false } = {}) {
   let q = amount(x);
   if (percent) q = q.multiply(Q(100));
   const r = round(q, { places, mode });

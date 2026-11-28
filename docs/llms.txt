@@ -2,9 +2,9 @@
 
 > The mathematics of finance for RatMath: exact money, time value, loans, bonds, scenarios, uncertain inputs and repeated runs, portfolios, options and life contingencies. Part of the RatMath Shelf; numbers come from @ratmath/core (a peer dependency). ESM: `import * as finance from "@ratmath/finance"`.
 
-Built from 0.2.0, commit ac28657. `file:line` is relative to the package root (also node_modules/@ratmath/finance/); on GitHub: https://github.com/ratmath/finance/blob/ac28657/<file>#L<line>. Docs pages are under https://ratmath.com/finance/. Full types: index.d.ts.
+Built from 0.2.0, commit a406eba plus uncommitted changes. `file:line` is relative to the package root (also node_modules/@ratmath/finance/); on GitHub: https://github.com/ratmath/finance/blob/a406eba/<file>#L<line>. Docs pages are under https://ratmath.com/finance/. Full types: index.d.ts.
 
-Types: `type Amount = Rational | bigint | number | string`; `type Certified = Rational | RationalInterval`; `type RoundingMode = "half-even" | "half-up" | "half-down" | "up" | "down" | "floor" | "ceil"`; `type Rounding = RoundingRule | number | RoundingMode | boolean | "none" | null`; `type DateLike = CalendarDate | string | [number, number, number]`; `type DayCount = "30/360" | "30E/360" | "actual/360" | "actual/365" | "actual/actual"`; `type Flows = Amount[] | { t?: Amount; amount: Amount }[]`; `type DatedFlows = { date: DateLike; amount: Amount }[]`; `type DepreciationMethod = "straight-line" | "declining-balance" | "sum-of-years-digits" | "units-of-production"`; `type When = number | string`
+Types: `type Amount = Rational | bigint | number | string`; `type Certified = Rational | RationalInterval`; `type Rounding = RoundingRule | number | RoundingMode | boolean | "none" | null`; `type DateLike = CalendarDate | string | [number, number, number]`; `type DayCount = "30/360" | "30E/360" | "actual/360" | "actual/365" | "actual/actual"`; `type Flows = Amount[] | { t?: Amount; amount: Amount }[]`; `type DatedFlows = { date: DateLike; amount: Amount }[]`; `type DepreciationMethod = "straight-line" | "declining-balance" | "sum-of-years-digits" | "units-of-production"`; `type When = number | string`
 
 ## Docs
 
@@ -19,19 +19,21 @@ name(params) → result — meaning · file:line · docs page
 - `FinanceError class: code` · src/money.js:8
 - `amount(x: Amount) → Rational` — An exact amount or rate from a whole number, a bigint, a Rational or a string: "1234.56", "1,234.56", "$1,234.56", "7/8", "4.5%" (= 9/200), "-250". · src/money.js:29 · money
 - `rate(x: Amount) → Rational` — A rate: the same reading as `amount`, so "5%" and "0.05" are both 1/20. · src/money.js:51 · time-value
-- `round(x: Amount, rule?: RoundingRule) → Rational` — Round to a number of decimal places under a named rule. half-even is banker's rounding; half-up sends a tie away from zero (the commercial rule) and… · src/money.js:60 · money
-- `format(x: Amount, options?: RoundingRule & { currency?: string; separator?: string; percent?: boolean }) → string` — "1,234.50" from an exact amount: rounded for display only, by the rule given · src/money.js:95 · money
-- `allocate(total: Amount, weights: Amount[], options?: { places?: number }) → Rational[]` — Split a total into parts in proportion to weights so that the rounded parts add up to the total exactly: each part is rounded down and the units left over… · src/money.js:113 · money
-- `power(base: Amount, exponent: Amount, digits?: number) → Certified` — base^exponent for a positive rational base. · src/money.js:153
-- `exp(x: Amount | RationalInterval, digits?: number) → RationalInterval` — e^x enclosed for a rational or an interval · src/money.js:145
-- `ln(x: Amount | RationalInterval, digits?: number) → RationalInterval` — ln x enclosed · src/money.js:147
-- `show(x: Certified, places?: number) → string` — An exact number or an interval as a decimal with `places` places. · src/money.js:179 · money
-- `CalendarDate class: year, month, day, serial, isEndOfMonth, addDays, addMonths, compareTo, equals, toString` — A calendar date, with no time of day and no time zone. · src/money.js:210 · dates
-- `date(x: DateLike) → CalendarDate` — A date from "2027-03-15", "2027-03" (the first of the month), [y, m, d] or a CalendarDate. · src/money.js:242 · dates
-- `daysBetween(a: DateLike, b: DateLike) → number` · src/money.js:249 · dates
-- `dayCount(from: DateLike, to: DateLike, convention?: DayCount) → { days: number; yearFraction: Rational }` — Days and the fraction of a year between two dates under a convention: "30/360" (US bond basis), "30E/360" (Eurobond), "actual/360", "actual/365" (fixed) or… · src/money.js:258 · dates
-- `isLeap(year: number) → boolean` · src/money.js:206
-- `DAY_COUNTS: readonly DayCount[]` · src/money.js:251
+- `MONEY_ROUNDING: "half-even"` — The rule money is rounded by when none is named: half-even (banker's rounding), the usual default in accounting and financial software because ties do not… · src/money.js:61 · money
+- `moneyRounder(mode?: RoundingMode) → ((x: any, places?: number) => any) & { mode: unknown }` — A Core rounder for a mode: a name from Core's ROUNDING_MODES, "up" or "down" (away from and towards zero), a rounder made by Core's `rounding(...)`, or your… · src/money.js:69 · reference
+- `round(x: Amount, rule?: RoundingRule) → Rational` — Round to a number of decimal places under a rule (MONEY_ROUNDING, so half-even, unless one is named). half-up sends a tie away from zero (the commercial… · src/money.js:84 · money
+- `format(x: Amount, options?: RoundingRule & { currency?: string; separator?: string; percent?: boolean }) → string` — "1,234.50" from an exact amount: rounded for display only, by the rule given · src/money.js:98 · money
+- `allocate(total: Amount, weights: Amount[], options?: { places?: number }) → Rational[]` — Split a total into parts in proportion to weights so that the rounded parts add up to the total exactly: each part is rounded down and the units left over… · src/money.js:116 · money
+- `power(base: Amount, exponent: Amount, digits?: number) → Certified` — base^exponent for a positive rational base. · src/money.js:156
+- `exp(x: Amount | RationalInterval, digits?: number) → RationalInterval` — e^x enclosed for a rational or an interval · src/money.js:148
+- `ln(x: Amount | RationalInterval, digits?: number) → RationalInterval` — ln x enclosed · src/money.js:150
+- `show(x: Certified, places?: number) → string` — An exact number or an interval as a decimal with `places` places. · src/money.js:182 · money
+- `CalendarDate class: year, month, day, serial, isEndOfMonth, addDays, addMonths, compareTo, equals, toString` — A calendar date, with no time of day and no time zone. · src/money.js:213 · dates
+- `date(x: DateLike) → CalendarDate` — A date from "2027-03-15", "2027-03" (the first of the month), [y, m, d] or a CalendarDate. · src/money.js:245 · dates
+- `daysBetween(a: DateLike, b: DateLike) → number` · src/money.js:252 · dates
+- `dayCount(from: DateLike, to: DateLike, convention?: DayCount) → { days: number; yearFraction: Rational }` — Days and the fraction of a year between two dates under a convention: "30/360" (US bond basis), "30E/360" (Eurobond), "actual/360", "actual/365" (fixed) or… · src/money.js:261 · dates
+- `isLeap(year: number) → boolean` · src/money.js:209
+- `DAY_COUNTS: readonly DayCount[]` · src/money.js:254
 - `simpleInterest(principal: Amount, rate: Amount, time: Amount) → { interest: Rational; total: Rational }` — Simple interest: principal·rate·time. { interest, total }. · src/tvm.js:20
 - `compound(principal: Amount, rate: Amount, years: Amount, options?: Digits & { periodsPerYear?: Amount | "continuous" }) → Certified` — What a principal grows to in `years` at a nominal annual rate compounded periodsPerYear times a year, or "continuous". · src/tvm.js:29 · time-value
 - `effectiveRate(nominal: Amount, periodsPerYear?: Amount | "continuous", options?: Digits) → Certified` — The effective annual rate of a nominal rate compounded m times a year (or "continuous"). · src/tvm.js:36 · time-value
@@ -84,12 +86,12 @@ name(params) → result — meaning · file:line · docs page
 - `capm(spec: { asset: Amount[]; market: Amount[]; riskFree?: Amount; marketReturn?: Amount | null }) → { beta: Rational; alpha: Rational; required: Rational; marketPremium: Rational; riskFree: Rational }` — The capital asset pricing model from returns: β = cov(asset, market) / var(market), α = mean(asset) − (r + β·(mean(market) − r)), and the required return r… · src/portfolio.js:214 · portfolios
 - `solveExact(M: Rational[][], b: Rational[]) → Rational[] | null` — Solve M x = b exactly (Gauss–Jordan over the rationals); null when M is singular. · src/portfolio.js:26
 - `strategy(legs: Leg[]) → { legs: Leg[]; cost: Rational; payoff(spot: Amount): Rational; profit(spot: Amount): Rational; kinks: Rational[]; breakEvens: Rational[]; maxProfit: Rational | null; maxLoss: Rational | null; }` — A strategy: legs { type: "call" | "put" | "stock" | "bond", strike (for an option; the face for a bond), premium (what one unit cost; default 0), quantity… · src/options.js:29 · options
-- `parity(spec: { call?: Amount; put?: Amount; spot?: Amount; strike?: Amount; rate: Amount; time: Amount; compounding?: "continuous" | "annual"; bits?: number }) → { call?: Certified; put?: Certified; spot?: Certified …` — Put–call parity C − P = S − K·DF for European options on a stock without dividends. · src/options.js:83 · options
-- `binomialTree(spec: { spot: Amount; strike: Amount; steps: number; type?: "call" | "put"; style?: "european" | "american"; up?: Amount; down?: Amount; growth?: Amount; volatility?: Amount; time?: Amount; rate?: Amount; places?: …` — Price an option on a recombining binomial tree, exactly. { spot, strike, steps, type: "call" | "put", style: "european" | "american", up, down, growth }:… · src/options.js:114 · options
-- `blackScholes(spec: { spot: Amount; strike: Amount; rate: Amount; volatility: Amount; time: Amount; dividendYield?: Amount; bits?: number }) → { call: RationalInterval; put: RationalInterval; d1: RationalInterval; d2: …` — European option values under Black–Scholes with continuous compounding: { spot, strike, rate, volatility, time, dividendYield = 0 }. · src/options.js:215 · options
-- `impliedVolatility(spec: { price: Amount; type?: "call" | "put"; spot: Amount; strike: Amount; rate: Amount; time: Amount; dividendYield?: Amount; digits?: number; bits?: number }) → RationalInterval` — The volatility at which Black–Scholes gives a stated price, enclosed to `digits` digits. · src/options.js:260 · options
-- `normalCdf(x: Amount | RationalInterval, bits?: number) → RationalInterval` — the standard normal distribution function, enclosed: (1 + erf(x/√2))/2 · src/options.js:197
-- `normalPdf(x: Amount | RationalInterval, bits?: number) → RationalInterval` — the standard normal density, enclosed · src/options.js:199
+- `parity(spec: { call?: Amount | RationalInterval; put?: Amount | RationalInterval; spot?: Amount | RationalInterval; strike?: Amount; rate: Amount; time: Amount; compounding?: "continuous" | "annual"; bits?: number }) → { …` — Put–call parity C − P = S − K·DF for European options on a stock without dividends. · src/options.js:83 · options
+- `binomialTree(spec: { spot: Amount; strike: Amount; steps: number; type?: "call" | "put"; style?: "european" | "american"; up?: Amount; down?: Amount; growth?: Amount; volatility?: Amount; time?: Amount; rate?: Amount; places?: …` — Price an option on a recombining binomial tree, exactly. { spot, strike, steps, type: "call" | "put", style: "european" | "american", up, down, growth }:… · src/options.js:115 · options
+- `blackScholes(spec: { spot: Amount; strike: Amount; rate: Amount; volatility: Amount; time: Amount; dividendYield?: Amount; bits?: number }) → { call: RationalInterval; put: RationalInterval; d1: RationalInterval; d2: …` — European option values under Black–Scholes with continuous compounding: { spot, strike, rate, volatility, time, dividendYield = 0 }. · src/options.js:216 · options
+- `impliedVolatility(spec: { price: Amount; type?: "call" | "put"; spot: Amount; strike: Amount; rate: Amount; time: Amount; dividendYield?: Amount; digits?: number; bits?: number }) → RationalInterval` — The volatility at which Black–Scholes gives a stated price, enclosed to `digits` digits. · src/options.js:261 · options
+- `normalCdf(x: Amount | RationalInterval, bits?: number) → RationalInterval` — the standard normal distribution function, enclosed: (1 + erf(x/√2))/2 · src/options.js:198
+- `normalPdf(x: Amount | RationalInterval, bits?: number) → RationalInterval` — the standard normal density, enclosed · src/options.js:200
 - `LifeTable class: startAge, lastAge, lives, l, d, p, q, deferredQ, curtateExpectation, completeExpectation, rows` · src/life.js:10
 - `lifeTable(spec: ConstructorParameters<typeof LifeTable>[0]) → LifeTable` · src/life.js:80 · life
 - `deMoivre(omega: number, options?: { startAge?: number }) → LifeTable` — de Moivre's law: l_x = ω − x, so deaths are uniform up to the limiting age ω. · src/life.js:82 · life
